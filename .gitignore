@@ -1,0 +1,10 @@
+# Debug exports contain full transcripts/captions from actual work sessions,
+# not source code - generated output, not something to version.
+Debug/
+
+# Contains a hardcoded API key - do not commit.
+transcribe_all.py
+
+# OS junk
+Thumbs.db
+.DS_Store
