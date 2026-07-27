@@ -1,6 +1,6 @@
 # Changelog: Automatic Caption Generator
 
-Comparing `Automatic Caption Generator - old.html` (original version) to `Automatic Caption Generator v2.html` (current version).
+Comparing `legacy/Automatic Caption Generator - old.html` (original version) to `Automatic Caption Generator v2.html` (current version).
 
 The original tool was a single-shot pipeline: enter an API key, pick a file, click Generate, download an SRT. There was no way to fix a mistake short of editing the downloaded file by hand, and nothing about your session — not even the API key — survived a page reload. Since then it's been rebuilt into an editing and production tool: a full caption editor with undo and find/replace, a safety net so a crashed tab doesn't cost you your work, and a more reliable transcription pipeline underneath it all. What follows is what's actually changed.
 

@@ -18,7 +18,7 @@ Open `Automatic Caption Generator v2.html` in a Chromium-based browser (custom s
 ## Files
 
 - **`Automatic Caption Generator v2.html`** - the current, actively maintained version. This is the one to use.
-- **`Automatic Caption Generator - old.html`** - the original single-shot version, kept for reference. It had no editing capability and no persistence of any kind.
+- **`legacy/Automatic Caption Generator - old.html`** - the original single-shot version, kept for reference. It had no editing capability and no persistence of any kind.
 - **`CHANGES.md`** - a detailed comparison of what's changed between the two.
 
 ## License
