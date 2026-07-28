@@ -2600,12 +2600,19 @@ REMEMBER: The {{maxChars}}-character maximum can never be violated. Within that 
                     // No live File currently held under this name, but there may
                     // be cached captions for it from a restored session (see
                     // restoreSession/fileMetaCache) - if the file being added now
-                    // doesn't match the size/date of whichever file originally
-                    // produced those captions, they're for different content and
-                    // shouldn't be silently reused.
+                    // doesn't match the size of whichever file originally produced
+                    // those captions, they're for different content and shouldn't
+                    // be silently reused. Deliberately size-only here, not also
+                    // lastModified like the replace-in-place check above -
+                    // lastModified is well known to shift on files that live in a
+                    // synced folder (OneDrive, etc.) even when the content hasn't
+                    // changed at all, and the whole point of a restore is to
+                    // reunite with the exact same file after some time has
+                    // passed, so treating that as a mismatch defeats the feature.
+                    // Size is a far more reliable signal that content actually
+                    // changed.
                     const cachedMeta = this.fileMetaCache.get(file.name);
-                    if (cachedMeta && this.transcripts.has(file.name) &&
-                        (cachedMeta.size !== file.size || cachedMeta.lastModified !== file.lastModified)) {
+                    if (cachedMeta && this.transcripts.has(file.name) && cachedMeta.size !== file.size) {
                         this.clearCachedFileData(file.name);
                         restoredMismatchCount++;
                     }
@@ -2664,6 +2671,18 @@ REMEMBER: The {{maxChars}}-character maximum can never be violated. Within that 
                     this.setupFileTabs();
                     this.loadCurrentFile();
                     this.updateQualitySummaryForCurrentFile();
+                } else if (results && results.style.display !== 'block') {
+                    // The current file may already have cached captions - most
+                    // notably, re-adding a file after a session restore, which
+                    // populates this.transcripts directly without ever going
+                    // through processFiles(). Reveal them immediately rather
+                    // than making the user also click Generate to see data
+                    // that's already fully there.
+                    const currentFile = this.files[this.currentFileIndex];
+                    if (currentFile && this.transcripts.has(currentFile.name)) {
+                        this.showResults();
+                        this.showQualitySummary();
+                    }
                 }
 
                 this.updateProcessButton();
