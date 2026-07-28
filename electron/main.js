@@ -138,7 +138,10 @@ function createWindow(initialFilePaths) {
       // explicit choice not to keep this session around at all.
       const { response } = await dialog.showMessageBox(mainWindow, {
         type: 'question',
-        buttons: ['Save & Quit', "Don't Save", 'Cancel'],
+        // Windows native dialog buttons treat & as an accelerator-key marker
+        // (underlines the next character and consumes the &) rather than a
+        // literal character - && is the escape sequence for a literal &.
+        buttons: ['Save && Quit', "Don't Save", 'Cancel'],
         defaultId: 0,
         cancelId: 2,
         title: 'Unsaved caption work',
