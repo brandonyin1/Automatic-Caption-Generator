@@ -2617,6 +2617,17 @@ REMEMBER: The {{maxChars}}-character maximum can never be violated. Within that 
                         restoredMismatchCount++;
                     }
 
+                    // this.audioUrls is otherwise only ever populated inside
+                    // processFiles() right after a successful transcription -
+                    // a restored file never goes through that (it already has
+                    // captions, so Generate skips it), so without this,
+                    // loadCurrentFile() would treat it as a failed file
+                    // (missing audioUrl) even though its captions are fully
+                    // intact and correct.
+                    if (this.transcripts.has(file.name) && !this.audioUrls.has(file.name)) {
+                        this.audioUrls.set(file.name, URL.createObjectURL(file));
+                    }
+
                     newFiles.push(file);
                 });
 
