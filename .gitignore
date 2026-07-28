@@ -8,3 +8,7 @@ transcribe_all.py
 # OS junk
 Thumbs.db
 .DS_Store
+
+# Electron build artifacts - installed/built locally, not versioned
+electron/node_modules/
+electron/dist/

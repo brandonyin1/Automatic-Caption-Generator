@@ -15,11 +15,31 @@ Along the way it also flags quality issues per caption (too long/brief on screen
 
 Open `Automatic Caption Generator v2.html` in a Chromium-based browser (custom save-location picking and drag-and-drop rely on the File System Access API, Chromium-only; the rest works in any modern browser). You'll need an API key for whichever transcription provider you use - entered once in Settings, optionally remembered in `localStorage` for next time. No server, no account, no data leaves your browser except the direct API calls to OpenAI/ElevenLabs.
 
+## Desktop app (optional) - Windows "Send To" integration
+
+The `electron/` folder wraps the same HTML file in a desktop app, so it can be registered as a Windows Explorer "Send To" target - select one or more audio/video files, right-click → Send To → Automatic Caption Generator, and they open pre-loaded. This is purely additive: opening the HTML file directly in a browser (above) still works exactly the same and needs none of this.
+
+```
+cd electron
+npm install
+npm start
+```
+
+Once running, open Settings and enable "Send To integration" - this registers a shortcut in your per-user `shell:sendto` folder pointing at the app. To build a real installable executable instead of running in dev mode:
+
+```
+cd electron
+npm run build
+```
+
+The installer/executable is written to `electron/dist/`. Re-enable Send To integration from Settings after installing, so the shortcut points at the installed executable rather than the dev-mode path. Windows-only; the toggle doesn't appear on other platforms.
+
 ## Files
 
 - **`Automatic Caption Generator v2.html`** - the current, actively maintained version. This is the one to use.
 - **`legacy/Automatic Caption Generator - old.html`** - the original single-shot version, kept for reference. It had no editing capability and no persistence of any kind.
-- **`CHANGES.md`** - a detailed comparison of what's changed between the two.
+- **`electron/`** - the optional desktop wrapper (Send To integration), described above.
+- **`CHANGES.md`** - a detailed comparison of what's changed between the two HTML versions.
 
 ## License
 

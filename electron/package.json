@@ -1,0 +1,36 @@
+{
+  "name": "automatic-caption-generator",
+  "version": "1.0.0",
+  "description": "Desktop wrapper for the Automatic Caption Generator, adding Windows \"Send To\" file-manager integration.",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^32.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.beckhoff.automatic-caption-generator",
+    "productName": "Automatic Caption Generator",
+    "files": [
+      "main.js",
+      "preload.js"
+    ],
+    "extraResources": [
+      {
+        "from": "../Automatic Caption Generator v2.html",
+        "to": "Automatic Caption Generator v2.html"
+      }
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}
