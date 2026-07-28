@@ -131,17 +131,32 @@ function createWindow(initialFilePaths) {
     }
 
     if (hasUnsavedWork) {
+      // Autosave already keeps a recovery snapshot up to date continuously
+      // through the session (see saveSessionSnapshot in the page itself) -
+      // "Save & Quit" just leaves that snapshot in place, "Don't Save" clears
+      // it so nothing gets offered for restore next launch, matching an
+      // explicit choice not to keep this session around at all.
       const { response } = await dialog.showMessageBox(mainWindow, {
-        type: 'warning',
-        buttons: ['Quit Anyway', 'Cancel'],
-        defaultId: 1,
-        cancelId: 1,
+        type: 'question',
+        buttons: ['Save & Quit', "Don't Save", 'Cancel'],
+        defaultId: 0,
+        cancelId: 2,
         title: 'Unsaved caption work',
         message: "You have processed captions that haven't been downloaded yet.",
-        detail: 'Caption/transcript work is periodically saved for recovery, but quitting now may still lose recent edits. Quit anyway?'
+        detail: 'Save this session so it can be restored next time you open the app?'
       });
-      if (response !== 0) {
+
+      if (response === 2) {
         return;
+      }
+      if (response === 1) {
+        try {
+          await mainWindow.webContents.executeJavaScript(
+            'window.discardCaptionSessionForQuit ? window.discardCaptionSessionForQuit() : null'
+          );
+        } catch (error) {
+          console.error('Could not clear the session snapshot before quitting:', error);
+        }
       }
     }
 

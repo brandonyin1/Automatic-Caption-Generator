@@ -1241,7 +1241,7 @@
             border: 1px solid var(--color-warning-border);
             border-radius: 8px;
             padding: 14px 20px;
-            margin: 20px 0 0;
+            margin: 20px 0 24px;
             color: var(--color-text);
         }
 
@@ -2174,6 +2174,14 @@ REMEMBER: The {{maxChars}}-character maximum can never be violated. Within that 
                 // strict mode, so this is exposed explicitly rather than assuming
                 // main.js can reach it directly.
                 window.hasUnsavedCaptionWork = () => this.hasUnsavedWork();
+
+                // Called from the same close-confirmation flow when the user
+                // explicitly chooses "Don't Save" - clears the autosaved
+                // snapshot so nothing gets offered for restore on next launch,
+                // rather than leaving behind a session they deliberately chose
+                // not to keep. Returns the clear's own promise so main.js can
+                // await it before actually destroying the window.
+                window.discardCaptionSessionForQuit = () => this.clearSessionSnapshot();
 
                 const section = document.getElementById('sendToSection');
                 const toggle = document.getElementById('sendToToggle');
