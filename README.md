@@ -1,6 +1,6 @@
 # Automatic Caption Generator
 
-A single-file, no-build-step HTML tool for turning audio/video into edited, exportable captions. Open the HTML file directly in a browser — nothing to install, nothing to run.
+A single-file HTML tool for turning audio/video into edited, exportable captions. To use it: open the HTML file directly in a browser — nothing to install, nothing to run. (Developing it is a different story - see [Development](#development) below.)
 
 ## What it does
 
@@ -14,6 +14,22 @@ Along the way it also flags quality issues per caption (too long/brief on screen
 ## Usage
 
 Open `Automatic Caption Generator v2.html` in a Chromium-based browser (custom save-location picking and drag-and-drop rely on the File System Access API, Chromium-only; the rest works in any modern browser). You'll need an API key for whichever transcription provider you use - entered once in Settings, optionally remembered in `localStorage` for next time. No server, no account, no data leaves your browser except the direct API calls to OpenAI/ElevenLabs.
+
+## Development
+
+`Automatic Caption Generator v2.html` is a **build artifact** - don't hand-edit it directly, edits will be overwritten by the next build. The actual source lives in `src/`:
+
+- `src/index.html` - the page markup
+- `src/styles/` - CSS, split by area (theme, layout, components, viewer)
+- `src/core/CaptionGenerator.js` - the class shell (constructor only)
+- `src/features/*.js` - the class's methods, grouped by concern (transcription, segmentation, editing, session recovery, etc.) - each exports a plain object of methods that `build.js` composes onto the class prototype
+- `src/bootstrap.js` - app init + window lifecycle listeners
+
+```
+npm run build
+```
+
+regenerates `Automatic Caption Generator v2.html` from `src/`, byte-for-byte the same single file this tool has always shipped as - no bundler, no dependencies. Usage (above) is completely unaffected: opening that file directly in a browser works exactly the same either way.
 
 ## Desktop app (optional) - Windows "Send To" integration
 
@@ -36,7 +52,8 @@ The installer/executable is written to `electron/dist/`. Re-enable Send To integ
 
 ## Files
 
-- **`Automatic Caption Generator v2.html`** - the current, actively maintained version. This is the one to use.
+- **`Automatic Caption Generator v2.html`** - the current, actively maintained version. This is the one to open in a browser - but it's generated from `src/`, not hand-edited (see [Development](#development)).
+- **`src/`, `build.js`, `package.json`** - the actual source and build tooling for the file above.
 - **`legacy/Automatic Caption Generator - old.html`** - the original single-shot version, kept for reference. It had no editing capability and no persistence of any kind.
 - **`electron/`** - the optional desktop wrapper (Send To integration), described above.
 - **`CHANGES.md`** - a detailed comparison of what's changed between the two HTML versions.
