@@ -211,6 +211,10 @@ body {
     cursor: pointer;
     font-size: 0.8em;
     transition: all 0.2s ease;
+    /* Shared with the GitHub link (an <a>, not a <button>) - text-decoration/
+       display reset so it renders identically to the real buttons beside it. */
+    text-decoration: none;
+    display: inline-block;
 }
 
 .whats-new-btn:hover {
@@ -1562,6 +1566,7 @@ body {
             <button type="button" class="whats-new-btn" id="settingsBtn">⚙️ Settings</button>
             <button type="button" class="whats-new-btn" id="whatsNewBtn">🆕 What's New?</button>
             <button type="button" class="whats-new-btn" id="exportDebugBtn" title="Download a JSON file with your current settings, cached transcriptions, generated captions, and the processing log - safe to share for troubleshooting (never includes API keys).">🐛 Export Debug Info</button>
+            <a href="https://github.com/brandonyin1/Automatic-Caption-Generator" target="_blank" rel="noopener noreferrer" class="whats-new-btn">🔗 GitHub</a>
         </div>
 
         <div class="session-recovery-banner hidden" id="sessionRecoveryBanner">

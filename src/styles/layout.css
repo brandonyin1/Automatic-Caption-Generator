@@ -109,6 +109,10 @@ body {
     cursor: pointer;
     font-size: 0.8em;
     transition: all 0.2s ease;
+    /* Shared with the GitHub link (an <a>, not a <button>) - text-decoration/
+       display reset so it renders identically to the real buttons beside it. */
+    text-decoration: none;
+    display: inline-block;
 }
 
 .whats-new-btn:hover {
