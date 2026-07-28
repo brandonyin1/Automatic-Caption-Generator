@@ -2,6 +2,13 @@
 
 A single-file HTML tool for turning audio/video into edited, exportable captions. To use it: open the HTML file directly in a browser — nothing to install, nothing to run. (Developing it is a different story - see [Development](#development) below.)
 
+## Download
+
+**[Get the latest release here](https://github.com/brandonyin1/Automatic-Caption-Generator/releases/latest)** - this is the intended way to get the files, not cloning the repo or browsing source. Each release has two assets:
+
+- `Automatic Caption Generator v2.html` - open it in a browser, that's it.
+- `Automatic Caption Generator Setup *.exe` - optional Windows desktop app with File Explorer "Send To" integration. See [below](#desktop-app-optional---windows-send-to-integration).
+
 ## What it does
 
 1. **Transcribe** audio or video via [OpenAI Whisper](https://platform.openai.com/docs/guides/speech-to-text) or [ElevenLabs Scribe](https://elevenlabs.io/speech-to-text) (your choice, per file batch). Large files are automatically chunked to stay under each provider's upload limit and stitched back together; video files have audio extracted client-side before upload.
@@ -13,7 +20,7 @@ Along the way it also flags quality issues per caption (too long/brief on screen
 
 ## Usage
 
-Open `Automatic Caption Generator v2.html` in a Chromium-based browser (custom save-location picking and drag-and-drop rely on the File System Access API, Chromium-only; the rest works in any modern browser). You'll need an API key for whichever transcription provider you use - entered once in Settings, optionally remembered in `localStorage` for next time. No server, no account, no data leaves your browser except the direct API calls to OpenAI/ElevenLabs.
+Open `Automatic Caption Generator v2.html` (from the [latest release](https://github.com/brandonyin1/Automatic-Caption-Generator/releases/latest)) in a Chromium-based browser (custom save-location picking and drag-and-drop rely on the File System Access API, Chromium-only; the rest works in any modern browser). You'll need an API key for whichever transcription provider you use - entered once in Settings, optionally remembered in `localStorage` for next time. No server, no account, no data leaves your browser except the direct API calls to OpenAI/ElevenLabs.
 
 ## Development
 
@@ -33,7 +40,11 @@ regenerates `Automatic Caption Generator v2.html` from `src/`, byte-for-byte the
 
 ## Desktop app (optional) - Windows "Send To" integration
 
-The `electron/` folder wraps the same HTML file in a desktop app, so it can be registered as a Windows Explorer "Send To" target - select one or more audio/video files, right-click → Send To → Automatic Caption Generator, and they open pre-loaded. This is purely additive: opening the HTML file directly in a browser (above) still works exactly the same and needs none of this.
+Adds the app as a Windows Explorer "Send To" target - select one or more audio/video files, right-click → Send To → Automatic Caption Generator, and they open pre-loaded. This is purely additive: opening the HTML file directly in a browser (above) still works exactly the same and needs none of this.
+
+**Easiest path:** download `Automatic Caption Generator Setup *.exe` from the [latest release](https://github.com/brandonyin1/Automatic-Caption-Generator/releases/latest), run it, then open Settings inside the app and enable "Send To integration". Windows SmartScreen will likely warn about an unknown publisher on first run (the app isn't code-signed) - click "More info" → "Run anyway".
+
+**Running from source instead**, via the `electron/` folder:
 
 ```
 cd electron
@@ -41,7 +52,7 @@ npm install
 npm start
 ```
 
-Once running, open Settings and enable "Send To integration" - this registers a shortcut in your per-user `shell:sendto` folder pointing at the app. To build a real installable executable instead of running in dev mode:
+Once running, open Settings and enable "Send To integration" the same way. To build your own installable executable instead of using the one from Releases:
 
 ```
 cd electron
