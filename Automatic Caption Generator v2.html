@@ -6358,13 +6358,31 @@ REMEMBER: The {{maxChars}}-character maximum can never be violated. Within that 
                     }
                 });
 
-                const fileCount = Object.keys(snapshot.files).length;
+                const fileNames = Object.keys(snapshot.files);
                 this.pendingSessionSnapshot = null;
-                document.getElementById('sessionRecoveryBanner').classList.add('hidden');
-                this.showMessage(
-                    `Restored captions for ${fileCount} file(s). Re-add the matching audio/video file(s) by name to continue - files with already-restored captions won't be re-transcribed.`,
-                    'success'
-                );
+
+                // Restoring only repopulates in-memory transcript/caption data -
+                // there's no way to reconstruct the original File objects, so
+                // nothing else on the page changes yet (no file list, no
+                // results) until the same file(s) are re-added. Hiding the
+                // banner here and relying on a toast that fades in a few
+                // seconds left no trace of what to do next - this looked
+                // exactly like "click Restore, nothing happens." Keep the
+                // banner up as a persistent reminder instead, with a single
+                // dismiss button, until the user explicitly closes it.
+                const banner = document.getElementById('sessionRecoveryBanner');
+                const message = document.getElementById('sessionRecoveryMessage');
+                const actions = banner.querySelector('.session-recovery-actions');
+                message.textContent = `Captions restored for: ${fileNames.join(', ')}. Add these same file(s) back (drag-and-drop or the file picker) to continue - they won't be re-transcribed.`;
+                actions.innerHTML = '';
+                const dismissBtn = document.createElement('button');
+                dismissBtn.type = 'button';
+                dismissBtn.className = 'settings-reset-btn';
+                dismissBtn.textContent = 'Got it';
+                dismissBtn.addEventListener('click', () => banner.classList.add('hidden'));
+                actions.appendChild(dismissBtn);
+
+                this.showMessage(`Restored captions for ${fileNames.length} file(s).`, 'success');
             }
 
             discardSession() {
