@@ -5,7 +5,13 @@ const path = require('path');
 const fs = require('fs');
 const { execFile } = require('child_process');
 
-const SEND_TO_SHORTCUT_NAME = 'Automatic Caption Generator.lnk';
+// Dev and packaged builds get separate shortcut names/files, so the Send To
+// menu visibly distinguishes them ("(dev)" suffix) and so toggling Send To
+// on from one build can never overwrite or clobber the other's registration
+// - each has its own independent on/off state.
+const SEND_TO_SHORTCUT_NAME = app.isPackaged
+    ? 'Automatic Caption Generator.lnk'
+    : 'Automatic Caption Generator (dev).lnk';
 
 // Extensions the main HTML app already accepts, per its upload-area hint text -
 // kept in sync manually since there's no shared module between the two.
