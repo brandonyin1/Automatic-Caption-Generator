@@ -3238,6 +3238,16 @@ REMEMBER: The {{maxChars}}-character maximum can never be violated. Within that 
                 const filesToProcess = this.files.filter(f => !this.transcripts.has(f.name));
 
                 if (filesToProcess.length === 0) {
+                    // Every selected file already has captions cached (e.g. all
+                    // of them came from a session restore, so none were ever
+                    // freshly generated this page load) - still show the
+                    // results view instead of just returning, otherwise the
+                    // captions exist in memory but nothing on screen ever
+                    // reveals them.
+                    if (document.getElementById('results').style.display !== 'block') {
+                        this.showResults();
+                        this.showQualitySummary();
+                    }
                     this.showMessage('All selected files already have captions. Remove and re-add a file if you want to re-transcribe it from scratch.', 'info');
                     return;
                 }
