@@ -194,7 +194,11 @@ ipcMain.handle('send-to:register', async () => {
 
   const shortcutPath = sendToShortcutPath();
   const targetPath = process.execPath;
-  const args = app.isPackaged ? '' : path.join(__dirname, '..');
+  // __dirname is electron/ itself - the directory containing this file's
+  // package.json, which is what Electron's CLI expects as the app path.
+  // (This previously pointed one level too high, at the repo root, which has
+  // no package.json - hence "Cannot find module 'C:\...\Caption Generator'".)
+  const args = app.isPackaged ? '' : __dirname;
 
   const script = `
     $shell = New-Object -ComObject WScript.Shell
