@@ -2166,6 +2166,15 @@ REMEMBER: The {{maxChars}}-character maximum can never be violated. Within that 
                     return;
                 }
 
+                // main.js queries this (via executeJavaScript) before allowing the
+                // window to close, so it can show a real native confirmation dialog
+                // instead of relying on beforeunload - which Electron silently
+                // honors with no dialog and no feedback, making the window
+                // seem unclosable. `let captionGen` isn't a window property in
+                // strict mode, so this is exposed explicitly rather than assuming
+                // main.js can reach it directly.
+                window.hasUnsavedCaptionWork = () => this.hasUnsavedWork();
+
                 const section = document.getElementById('sendToSection');
                 const toggle = document.getElementById('sendToToggle');
 

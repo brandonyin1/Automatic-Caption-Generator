@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { execFile } = require('child_process');
@@ -86,6 +86,8 @@ async function sendFilesToRenderer(filePaths) {
 }
 
 function createWindow(initialFilePaths) {
+  let quitConfirmed = false;
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -102,6 +104,50 @@ function createWindow(initialFilePaths) {
   });
 
   mainWindow.loadFile(resolveAppHtmlPath());
+
+  // The page has its own beforeunload handler warning about unsaved caption
+  // work (in-memory only until downloaded), which is exactly the right thing
+  // in a real browser tab - it triggers a native "Leave site?" dialog. Inside
+  // Electron, beforeunload being cancelled just silently blocks the window
+  // from closing at all, with no dialog and no visible feedback - clicking
+  // the X button (or the default menu's Exit, which also routes through this)
+  // would appear to do nothing. Handling it here instead, with a real dialog,
+  // and destroy()-ing (which bypasses beforeunload entirely) once confirmed,
+  // rather than calling close() again, which would just hit the same
+  // beforeunload guard a second time.
+  mainWindow.on('close', async (event) => {
+    if (quitConfirmed) {
+      return;
+    }
+    event.preventDefault();
+
+    let hasUnsavedWork = false;
+    try {
+      hasUnsavedWork = await mainWindow.webContents.executeJavaScript(
+        'window.hasUnsavedCaptionWork ? window.hasUnsavedCaptionWork() : false'
+      );
+    } catch (error) {
+      console.error('Could not check for unsaved caption work:', error);
+    }
+
+    if (hasUnsavedWork) {
+      const { response } = await dialog.showMessageBox(mainWindow, {
+        type: 'warning',
+        buttons: ['Quit Anyway', 'Cancel'],
+        defaultId: 1,
+        cancelId: 1,
+        title: 'Unsaved caption work',
+        message: "You have processed captions that haven't been downloaded yet.",
+        detail: 'Caption/transcript work is periodically saved for recovery, but quitting now may still lose recent edits. Quit anyway?'
+      });
+      if (response !== 0) {
+        return;
+      }
+    }
+
+    quitConfirmed = true;
+    mainWindow.destroy();
+  });
 
   mainWindow.on('closed', () => {
     mainWindow = null;
