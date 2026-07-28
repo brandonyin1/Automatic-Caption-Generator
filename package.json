@@ -1,0 +1,9 @@
+{
+  "name": "automatic-caption-generator-build",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Build tooling for the Automatic Caption Generator - bundles src/ into the single distributable HTML file. Unrelated to electron/package.json, which packages that output into a desktop app.",
+  "scripts": {
+    "build": "node build.js"
+  }
+}

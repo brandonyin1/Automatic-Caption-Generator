@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Professional Audio Caption Generator</title>
+    <script>
+        // Applied before the stylesheet paints, so there's no flash of the
+        // wrong theme on load. Falls back to the OS preference if the user
+        // hasn't explicitly picked a theme in this browser yet.
+        (function () {
+            try {
+                var theme = localStorage.getItem('captionGenerator.theme');
+                if (!theme) {
+                    theme = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+                }
+                document.documentElement.dataset.theme = theme;
+            } catch (error) {
+                document.documentElement.dataset.theme = 'light';
+            }
+        })();
+    </script>
+    <!--BUILD:CSS-->
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <button class="theme-toggle" id="themeToggle" role="switch" aria-checked="false" title="Toggle dark mode" aria-label="Toggle dark mode">
+                <span class="theme-toggle-icon">☀️</span>
+                <span class="theme-toggle-thumb"></span>
+                <span class="theme-toggle-icon">🌙</span>
+            </button>
+            <h1>🎙️ Professional Audio Caption Generator v2</h1>
+            <p>AI-powered transcription with intelligent breaks and perfect technical terminology</p>
+            <button type="button" class="whats-new-btn" id="settingsBtn">⚙️ Settings</button>
+            <button type="button" class="whats-new-btn" id="whatsNewBtn">🆕 What's New?</button>
+            <button type="button" class="whats-new-btn" id="exportDebugBtn" title="Download a JSON file with your current settings, cached transcriptions, generated captions, and the processing log - safe to share for troubleshooting (never includes API keys).">🐛 Export Debug Info</button>
+        </div>
+
+        <div class="session-recovery-banner hidden" id="sessionRecoveryBanner">
+            <div id="sessionRecoveryMessage"></div>
+            <div class="session-recovery-actions">
+                <button type="button" class="settings-reset-btn" id="restoreSessionBtn">Restore</button>
+                <button type="button" class="settings-reset-btn" id="discardSessionBtn">Discard</button>
+            </div>
+        </div>
+
+        <div class="main-upload-section">
+            <div class="dictionary-section">
+                <div class="dictionary-title">
+                    🎯 Technical Terms Dictionary
+                </div>
+                <textarea class="dictionary-input" id="technicalTerms" placeholder="One term per line (e.g., Beckhoff, TwinCAT, etc.)">Beckhoff
+TwinCAT
+EtherCAT
+PLC
+HMI
+XAE
+XAR
+I/O
+ADS
+AMS Net ID
+NC
+OPC UA
+eLearning</textarea>
+                <div class="dictionary-help">
+                    Add critical technical terms that must be spelled correctly. One term per line. Saved in this browser.
+                </div>
+            </div>
+
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">🎵</div>
+                <div class="upload-text">Click or drag audio or video files here</div>
+                <div class="upload-subtext">Supports MP3, WAV, M4A, MP4, MOV, WebM • Any length • Multiple files supported</div>
+                <input type="file" class="file-input" id="fileInput" accept="audio/*,video/*" multiple>
+            </div>
+        </div>
+
+        <div class="file-list" id="fileList">
+            <h3 style="margin-bottom: 15px; color: #2c3e50;">📁 Selected Files</h3>
+            <div id="fileContainer"></div>
+        </div>
+
+        <div class="info-box">
+            <div class="info-title-row">
+                <div class="info-title">🧠 Smart Caption Intelligence + Video Processing</div>
+                <button type="button" class="settings-reset-btn" id="toggleInfoBoxBtn" aria-expanded="true">Collapse</button>
+            </div>
+            <div class="info-content" id="infoBoxContent">
+                <ul>
+                    <li><strong>Transcription:</strong> OpenAI Whisper or ElevenLabs Scribe, picked below.</li>
+                    <li><strong>Segmentation:</strong> rule-based (default) reliably breaks at sentence ends and punctuation; AI-assisted lets a model decide instead, with an editable prompt if you want to steer it.</li>
+                    <li><strong>Either way:</strong> captions also break on long pauses in speech and are capped at a maximum time on screen, not just a minimum.</li>
+                    <li><strong>Accuracy:</strong> technical terms are kept spelled correctly throughout - built for training videos and technical content.</li>
+                    <li><strong>Video &amp; long files:</strong> upload MP4/MOV videos or audio of any length. Audio decodes and compresses in seconds rather than playing back in real time, then splits into chunks automatically to stay under the selected provider's upload limit - multi-hour training videos process without any manual splitting.</li>
+                </ul>
+            </div>
+        </div>
+
+        <button class="process-btn" id="processBtn" disabled>
+            🚀 Generate Professional Captions
+        </button>
+
+        <div class="settings-section" id="generationSettings">
+            <div class="settings-title-row">
+                <div class="settings-title">🎛️ Caption Generation Settings</div>
+                <div class="prompt-editor-header-actions">
+                    <button type="button" class="settings-reset-btn" id="resetCaptionSettings">Reset to defaults</button>
+                    <button type="button" class="settings-reset-btn" id="toggleCaptionTuningBtn" aria-expanded="false">Show tuning settings</button>
+                </div>
+            </div>
+
+            <div class="settings-grid">
+                <label for="settingTranscriptionProvider">Transcription provider
+                    <select id="settingTranscriptionProvider" title="Which service transcribes the audio into text with word-level timestamps. Takes effect on the next file(s) you process - switching this after a file is already transcribed doesn't re-transcribe it.">
+                        <option value="whisper" selected>OpenAI Whisper</option>
+                        <option value="elevenlabs">ElevenLabs Scribe</option>
+                    </select>
+                </label>
+                <label for="settingSegmentationMethod">Segmentation method
+                    <select id="settingSegmentationMethod" title="How the transcript gets split into caption-sized segments. Rule-based guarantees sentence/punctuation-aligned breaks; AI options ask a model to do it instead, which can read as more natural but isn't guaranteed to follow the same rules as strictly.">
+                        <option value="rule-based" selected>Rule-based (reliable, free)</option>
+                        <option value="gpt-4o-mini">AI: gpt-4o-mini (cheap, fast)</option>
+                        <option value="gpt-4o">AI: gpt-4o (balanced)</option>
+                        <option value="gpt-4-turbo">AI: gpt-4-turbo (higher quality)</option>
+                        <option value="gpt-4">AI: gpt-4 (legacy)</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="caption-tuning-content hidden" id="captionTuningContent">
+                <div class="settings-grid" style="margin-top: 14px;">
+                    <label for="settingMaxChars">Max characters per caption
+                        <input type="number" id="settingMaxChars" min="10" max="200" step="1" value="60">
+                    </label>
+                    <label for="settingTargetChars">Target characters per caption
+                        <input type="number" id="settingTargetChars" min="10" max="200" step="1" value="40">
+                    </label>
+                    <label for="settingMinDuration">Minimum time on screen
+                        <div class="input-with-unit">
+                            <input type="number" id="settingMinDuration" min="0" max="10" step="0.1" value="1.0">
+                            <span class="input-unit">s</span>
+                        </div>
+                    </label>
+                    <label for="settingMaxDuration">Maximum time on screen
+                        <div class="input-with-unit">
+                            <input type="number" id="settingMaxDuration" min="1" max="20" step="0.5" value="7.0">
+                            <span class="input-unit">s</span>
+                        </div>
+                    </label>
+                    <label for="settingMaxReadingSpeed">Max reading speed
+                        <div class="input-with-unit">
+                            <input type="number" id="settingMaxReadingSpeed" min="5" max="60" step="1" value="20">
+                            <span class="input-unit">char/s</span>
+                        </div>
+                    </label>
+                    <label for="settingGapThreshold">Merge gaps shorter than
+                        <div class="input-with-unit">
+                            <input type="number" id="settingGapThreshold" min="0" max="5" step="0.1" value="1.0">
+                            <span class="input-unit">s</span>
+                        </div>
+                    </label>
+                    <label for="settingPauseThreshold">Break on pauses longer than
+                        <div class="input-with-unit">
+                            <input type="number" id="settingPauseThreshold" min="0.1" max="5" step="0.1" value="0.6">
+                            <span class="input-unit">s</span>
+                        </div>
+                    </label>
+                    <label for="settingLeadIn">Start captions early by
+                        <div class="input-with-unit">
+                            <input type="number" id="settingLeadIn" min="0" max="1" step="0.05" value="0.1">
+                            <span class="input-unit">s</span>
+                        </div>
+                    </label>
+                    <label for="settingHold">Keep captions after audio by
+                        <div class="input-with-unit">
+                            <input type="number" id="settingHold" min="0" max="1" step="0.05" value="0.2">
+                            <span class="input-unit">s</span>
+                        </div>
+                    </label>
+                </div>
+
+                <div class="prompt-editor" id="aiPromptEditor">
+                    <div class="prompt-editor-header">
+                        <label for="settingCustomPrompt">AI segmentation prompt</label>
+                        <div class="prompt-editor-header-actions">
+                            <button type="button" class="settings-reset-btn" id="resetPromptBtn">Reset prompt</button>
+                            <button type="button" class="settings-reset-btn" id="togglePromptBtn" aria-expanded="true">Collapse</button>
+                        </div>
+                    </div>
+                    <div class="prompt-editor-content" id="promptEditorContent">
+                        <textarea id="settingCustomPrompt" class="prompt-textarea" spellcheck="false"></textarea>
+                        <div class="settings-help">
+                            Used only when an AI segmentation method is selected above. Placeholders <code>{{maxChars}}</code>, <code>{{targetLow}}</code>, <code>{{targetHigh}}</code>, <code>{{preferredLow}}</code>, <code>{{preferredHigh}}</code>, and <code>{{transcript}}</code> get filled in automatically before each request.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-help">
+                    Controls how captions are segmented, timed, and flagged for review. Saved in this browser, and re-read live every time you regenerate. Sentence/clause breaks, the pause-based break, and the maximum-time-on-screen cap are all enforced regardless of segmentation method — AI segmentation chooses the initial grouping, then the same rules subdivide it further if needed. "Start captions early by" and "Keep captions after audio by" nudge timing slightly ahead of/behind the literal spoken words for easier reading, without ever overlapping a neighboring caption.
+                </div>
+            </div>
+        </div>
+
+        <div class="progress" id="progress">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-text" id="progressText">Initializing...</div>
+            <div class="progress-log" id="progressLog"></div>
+        </div>
+
+        <div class="results" id="results">
+            <div class="results-header">
+                <div class="results-title">✅ Professional Captions Generated</div>
+                <div class="file-tabs" id="fileTabs"></div>
+            </div>
+
+            <div class="quality-summary" id="qualitySummary">
+                <div class="settings-title-row">
+                    <div class="quality-title">
+                        📊 Caption Quality Summary
+                    </div>
+                    <div class="prompt-editor-header-actions">
+                        <button
+                            type="button"
+                            class="settings-reset-btn"
+                            id="scrollToTuningBtn"
+                            title="Expand and jump to the caption tuning settings, near the Generate button">
+                            🎛️ Show Tuning Settings
+                        </button>
+                        <button
+                            type="button"
+                            class="settings-reset-btn"
+                            id="regenerateCaptions"
+                            title="Re-run caption segmentation for this file using your current Caption Generation Settings, without re-transcribing the audio">
+                            🔁 Regenerate Captions
+                        </button>
+                    </div>
+                </div>
+                <div class="quality-content" id="qualityContent">
+                    Processing completed successfully. Caption quality information will appear here.
+                </div>
+                <button class="quality-toggle" id="qualityToggle">Show Details</button>
+                <div class="quality-details" id="qualityDetails"></div>
+            </div>
+
+            <div class="editor-layout">
+
+                <div class="audio-section">
+
+                    <div class="audio-title">
+                        🎵 Audio Player
+                    </div>
+
+                    <audio id="audioPlayer"></audio>
+
+                    <div class="custom-player">
+                        <button type="button" class="player-btn" id="playPauseBtn" title="Play/Pause" aria-label="Play or pause">
+                            <span class="icon-play"></span>
+                            <span class="icon-pause"><span></span><span></span></span>
+                        </button>
+                        <span class="player-time" id="currentTimeDisplay">0:00</span>
+                        <input type="range" class="seek-bar" id="seekBar" min="0" max="0" step="0.01" value="0" aria-label="Seek">
+                        <span class="player-time" id="durationDisplay">0:00</span>
+                        <button type="button" class="player-btn player-btn-small" id="muteBtn" title="Mute/Unmute" aria-label="Mute or unmute">🔊</button>
+                        <input type="range" class="volume-bar" id="volumeBar" min="0" max="1" step="0.01" value="1" aria-label="Volume">
+                    </div>
+
+                    <div class="shortcuts-hint">⌨️ Space play/pause · ←/→ seek 5s · ↑/↓ jump caption · Shift+↑/↓ jump to flagged · Ctrl+Z undo</div>
+
+                    <div class="playback-speed">
+                        <label for="playbackSpeed">Playback speed</label>
+                        <select id="playbackSpeed">
+                            <option value="0.5">0.5x</option>
+                            <option value="0.75">0.75x</option>
+                            <option value="1" selected>1x</option>
+                            <option value="1.25">1.25x</option>
+                            <option value="1.5">1.5x</option>
+                            <option value="1.75">1.75x</option>
+                            <option value="2">2x</option>
+                        </select>
+                    </div>
+
+                </div>
+
+                <div class="viewer-section">
+
+                    <div class="viewer-header">
+                        <div class="viewer-title">
+                            📝 Transcript Editor
+                        </div>
+                        <div class="viewer-header-actions">
+                            <button type="button" class="settings-reset-btn" id="undoBtn" title="Undo the last merge, split, delete, or regenerate (Ctrl+Z)" disabled>↩️ Undo</button>
+                            <button type="button" class="settings-reset-btn" id="findReplaceBtn" title="Find and replace text across caption(s)">🔍 Find &amp; Replace</button>
+                            <label class="remember-toggle" for="spellcheckToggle" title="Flags misspelled words in caption text - note this will also flag technical terms (Beckhoff, TwinCAT, etc.) that aren't in the browser's dictionary">
+                                <input type="checkbox" id="spellcheckToggle" checked>
+                                Spellcheck
+                            </label>
+                            <div class="autosave-hint">Edits save automatically</div>
+                        </div>
+                    </div>
+
+                    <div
+                        id="transcriptEditor"
+                        class="srt-viewer">
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="download-section">
+                <div class="download-format">
+                    <label for="downloadFormat">Caption format</label>
+                    <select id="downloadFormat">
+                        <option value="srt" selected>SRT</option>
+                        <option value="vtt">WebVTT</option>
+                    </select>
+                </div>
+
+                <button class="download-btn" id="downloadAll">📦 Download All Captions</button>
+                <button class="download-btn" id="downloadCurrent">📥 Download Current Captions</button>
+                <button class="download-btn" id="downloadTranscript">📄 Download Transcript</button>
+            </div>
+        </div>
+
+        <div id="messageContainer"></div>
+    </div>
+
+    <div class="modal-overlay" id="settingsOverlay">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">⚙️ Settings</div>
+                <button type="button" class="modal-close" id="settingsClose" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="setup-section">
+                    <div class="setup-title">🔑 OpenAI API Configuration</div>
+                    <input type="password" class="api-input" id="apiKey" placeholder="Enter your OpenAI API key (sk-...)">
+                    <div class="api-help">
+                        Needed for Whisper transcription and/or AI segmentation. Get your key at <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com/api-keys</a>
+                    </div>
+                    <label class="remember-toggle" for="rememberApiKey">
+                        <input type="checkbox" id="rememberApiKey" checked>
+                        Remember this key in my browser
+                    </label>
+                </div>
+
+                <div class="setup-section">
+                    <div class="setup-title">🔑 ElevenLabs API Configuration</div>
+                    <input type="password" class="api-input" id="elevenlabsApiKey" placeholder="Enter your ElevenLabs API key">
+                    <div class="api-help">
+                        Needed for ElevenLabs Scribe transcription. Get your key at <a href="https://elevenlabs.io/app/settings/api-keys" target="_blank">elevenlabs.io/app/settings/api-keys</a>
+                    </div>
+                    <label class="remember-toggle" for="rememberElevenlabsApiKey">
+                        <input type="checkbox" id="rememberElevenlabsApiKey" checked>
+                        Remember this key in my browser
+                    </label>
+                </div>
+
+                <div class="setup-section hidden" id="saveLocationSection">
+                    <div class="setup-title">📁 Save Locations</div>
+                    <div class="download-format" id="captionSaveLocationControl">
+                        <label for="chooseCaptionSaveLocationBtn">Caption downloads save to</label>
+                        <button type="button" class="settings-reset-btn" id="chooseCaptionSaveLocationBtn" title="Pick a folder for caption/transcript downloads to save into directly, instead of your browser's default downloads location.">Downloads folder (default)</button>
+                        <button type="button" class="settings-reset-btn hidden" id="clearCaptionSaveLocationBtn" title="Stop saving to this folder, use normal downloads again">✕</button>
+                    </div>
+                    <div class="download-format" id="debugSaveLocationControl">
+                        <label for="chooseDebugSaveLocationBtn">Debug exports save to</label>
+                        <button type="button" class="settings-reset-btn" id="chooseDebugSaveLocationBtn" title="Pick a folder for debug info exports to save into directly, instead of your browser's default downloads location.">Downloads folder (default)</button>
+                        <button type="button" class="settings-reset-btn hidden" id="clearDebugSaveLocationBtn" title="Stop saving to this folder, use normal downloads again">✕</button>
+                    </div>
+                    <div class="api-help">
+                        Only available in Chromium browsers (Chrome/Edge) via the File System Access API. Remembered across reloads of this file - the browser may briefly ask to reconfirm access the first time you save after reopening the page.
+                    </div>
+                </div>
+
+                <div class="setup-section hidden" id="sendToSection">
+                    <div class="setup-title">📤 Windows "Send To" Integration</div>
+                    <label class="remember-toggle" for="sendToToggle" title="Adds this app to the right-click Send To menu in File Explorer, so you can select audio/video files and send them here directly.">
+                        <input type="checkbox" id="sendToToggle">
+                        Enable "Send To" integration
+                    </label>
+                    <div class="api-help" id="sendToHelp">
+                        Once enabled, right-click one or more audio/video files in File Explorer → Send To → Automatic Caption Generator.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="findReplaceOverlay">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">🔍 Find &amp; Replace</div>
+                <button type="button" class="modal-close" id="findReplaceClose" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="setup-section">
+                    <label for="findText">Find</label>
+                    <input type="text" class="api-input" id="findText" placeholder="Text to find" autocomplete="off">
+                    <label for="replaceText">Replace with</label>
+                    <input type="text" class="api-input" id="replaceText" placeholder="Replacement text (can be blank)" autocomplete="off">
+                    <label class="remember-toggle" for="findReplaceCaseSensitive">
+                        <input type="checkbox" id="findReplaceCaseSensitive">
+                        Case-sensitive
+                    </label>
+                    <label class="remember-toggle" for="findReplaceAllFiles" title="When off, only searches the file currently being viewed">
+                        <input type="checkbox" id="findReplaceAllFiles">
+                        Apply to all processed files, not just the current one
+                    </label>
+                    <p class="api-help">Each affected file gets its own undo step, so Ctrl+Z (after switching to that file) reverts just that file's replacements.</p>
+                    <button type="button" class="settings-reset-btn" id="findReplaceApplyBtn">Replace All</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="whatsNewOverlay">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">🆕 What's New</div>
+                <button type="button" class="modal-close" id="whatsNewClose" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>The original tool was a single-shot pipeline: enter an API key, pick a file, click Generate, download an SRT. There was no way to fix a mistake short of editing the downloaded file by hand, and nothing about your session - not even the API key - survived a page reload. Since then it's been rebuilt into an editing and production tool: a full caption editor with undo and find/replace, a safety net so a crashed tab doesn't cost you your work, and a more reliable transcription pipeline underneath it all. The sections below cover what's actually changed.</p>
+
+                <h2>Audio processing &amp; reliability</h2>
+                <ul>
+                    <li><strong>Choice of transcription provider.</strong> OpenAI Whisper (the default) or ElevenLabs Scribe, picked right above the Generate button. Both return the same word-level timing under the hood, so switching providers doesn't change how captions are generated afterward - just how the audio gets turned into text in the first place.</li>
+                    <li><strong>Fast video audio extraction.</strong> Previously ran in real time (a 30-minute video took ~30 minutes just to extract audio, with a hardcoded timeout that could kill long files outright). Now decodes and downsamples via the Web Audio API in seconds, with the old real-time method kept only as an automatic fallback.</li>
+                    <li><strong>Automatic chunking for large files.</strong> Previously a file over Whisper's 25MB upload limit simply failed. Oversized files are now split into chunks automatically, transcribed separately, and stitched back together with corrected timestamps - transparent for both providers.</li>
+                    <li><strong>Retry logic</strong> for transient transcription failures (429/5xx and network errors), up to 3 attempts with backoff, instead of failing the whole file on one bad response.</li>
+                    <li><strong>Fixed silent caption data loss.</strong> Previously, if the word-matcher couldn't confidently place a caption segment, that text was dropped with no trace at all. It's now placed at an approximate position and flagged for manual review instead of disappearing.</li>
+                    <li><strong>Fixed AI-segmented captions scrambling, especially toward the end of longer files.</strong> The old matcher searched fresh for each caption's timing and, if even one word failed to match (e.g. a hyphenated term tokenized two different ways), permanently lost its place - every caption after that point kept searching from the wrong position for the rest of the file. Segmentation now aligns the whole transcript to word timestamps once, then walks the AI's chosen segments against that alignment in lockstep, so a single mismatch only affects the one caption instead of cascading.</li>
+                    <li><strong>Fixed missing punctuation in captions.</strong> Whisper/ElevenLabs' word-level timestamps come back without punctuation attached, even though the full transcript has it - so captions built from word timing were silently losing every period and comma. Punctuation is now restored from the full transcript before segmentation runs.</li>
+                    <li><strong>GPT segmentation truncation fix</strong> - transcripts are chunked before being sent for segmentation, so a long file can no longer produce a GPT response that gets cut off mid-JSON.</li>
+                </ul>
+
+                <h2>Caption generation quality</h2>
+                <ul>
+                    <li><strong>Configurable caption settings</strong> (max/target characters, min/max time on screen, max reading speed, gap-merge threshold, pause-break threshold, lead-in/hold padding), with a reset-to-defaults button - previously every one of these was a hardcoded constant.</li>
+                    <li><strong>Choice of segmentation method.</strong> Rule-based (the default) splits at sentence ends first, then commas/semicolons, then clause boundaries, with word boundaries only as a last resort - guaranteed by code, free, and instant. AI-assisted segmentation is still available for anyone who prefers a model's judgment call, with the same rule-based limits applied underneath as a mechanical safety net.</li>
+                    <li><strong>Pause-aware breaking and a maximum time-on-screen cap</strong> - captions now also break on long silences between words, not just punctuation, and are capped at a configurable maximum duration rather than only ever having a minimum.</li>
+                    <li><strong>Lead-in/hold timing padding.</strong> Captions now start slightly before and end slightly after the literal spoken word (defaults: 0.1s early, 0.2s held) - standard captioning practice, since syncing exactly to speech onset/offset reads as slightly late. Provably never overlaps a neighboring caption.</li>
+                    <li><strong>Rule-based captions now aim for target length</strong> instead of packing every caption to the maximum. Previously, a long sentence was chopped as large as possible over and over, leaving whatever was left at the very end standing alone as a short, awkward "dangling" caption.</li>
+                    <li><strong>Editable, resettable AI prompt</strong> for anyone using AI segmentation, with placeholders for the character limits and transcript that fill in automatically.</li>
+                    <li><strong>Regenerate without re-transcribing</strong> - re-run segmentation/timing after changing settings without paying for transcription again.</li>
+                </ul>
+
+                <h2>Editing capabilities (the original had none)</h2>
+                <p>The original SRT viewer was read-only start to finish - fixing a mistake meant editing the downloaded file by hand. Every item below is new:</p>
+                <ul>
+                    <li><strong>Auto-save</strong> on every keystroke - no "Save Changes" button.</li>
+                    <li><strong>Editable start/end timestamps</strong> per caption, with overlap-safe validation against neighboring captions.</li>
+                    <li><strong>Merge / Split / Insert / Delete</strong> actions on individual captions - Insert adds a blank caption right after the current one, for filling a gap rather than only editing what generation already produced.</li>
+                    <li><strong>Undo</strong> (button + Ctrl/Cmd+Z) covers merge, split, insert, delete, regenerate, timestamp edits, and plain text edits.</li>
+                    <li><strong>Find &amp; Replace</strong> - fix a word or phrase consistently across every caption, either in just the current file or across every processed file at once, instead of editing each caption by hand. Each affected file gets its own undo step.</li>
+                    <li><strong>Bounded single-caption preview</strong> - clicking a caption plays only that caption's span, then pauses.</li>
+                    <li><strong>Scroll position preserved</strong> across every edit, instead of jumping back to the top of a long caption list each time - and each file remembers its own scroll position when switching between tabs.</li>
+                    <li><strong>Shift+↑/↓ jumps to the next flagged caption</strong>, skipping clean ones, for reviewing just what needs attention in a long file.</li>
+                    <li><strong>Optional native spellcheck</strong> on caption text (on by default), aware that it'll flag technical jargon not in the browser's dictionary.</li>
+                </ul>
+
+                <h2>Quality &amp; validation</h2>
+                <ul>
+                    <li><strong>Reading-speed and screen-time checks</strong> (both too brief and too long), in addition to length - previously length was the only thing checked, against a single hardcoded 65-character bar.</li>
+                    <li><strong>Per-caption match-confidence and "approximated" flags</strong> shown directly on each caption card, instead of an aggregate pass/fail with no way to tell which caption actually needs a look.</li>
+                    <li><strong>Text-divergence detection</strong> points to the specific caption where generated text first diverges from the original transcript, rather than only reporting an aggregate character/word difference.</li>
+                </ul>
+
+                <h2>Data safety &amp; persistence (the original saved nothing - not even the API key)</h2>
+                <ul>
+                    <li><strong>Session recovery.</strong> Caption/transcript work is now periodically saved in the browser (IndexedDB) as you edit. If the tab crashes, gets closed, or reloads before you've downloaded your captions, reopening the page offers to restore that work - re-add the same audio/video file(s) afterward and they'll pick up right where the restored captions left off, without re-transcribing. Only the caption text and timing are saved, not the audio/video files themselves.</li>
+                    <li><strong>Generate only processes files that need it.</strong> Previously, clicking Generate wiped and re-transcribed every selected file from scratch every time, so adding one new file to a batch destroyed all edits on the others. Generate now only transcribes files that don't already have finished captions - everything else, edits included, is left completely alone. (To force a full re-transcription of an already-processed file, remove it from the list and add it back.)</li>
+                    <li><strong>Content-aware duplicate detection.</strong> Adding a file with the same name as one already in the list used to always be treated as a duplicate and silently skipped, even if it was actually different, re-exported content. File size and modified date are now compared too - a genuine duplicate is still skipped, but a same-named file with different content replaces the old entry and clears its stale captions instead of silently keeping them. The same check covers re-adding a file after a session restore.</li>
+                    <li><strong>Persistent settings.</strong> API keys (opt-in), the technical terms dictionary, caption settings, download format, save locations, theme, and spellcheck preference all now survive a reload - previously every one of these reset to defaults (or, for the API key, to blank) on every page load.</li>
+                    <li><strong>Unsaved-work warning</strong> before closing the tab if there's processed caption work that hasn't been downloaded.</li>
+                </ul>
+
+                <h2>Export &amp; troubleshooting</h2>
+                <ul>
+                    <li><strong>WebVTT export</strong> added alongside SRT, via a persisted format selector.</li>
+                    <li><strong>Custom save locations</strong> (Chromium browsers only) - pick separate folders for caption/transcript downloads and debug exports instead of always using the browser's default downloads folder. Remembered across reloads, with an on-screen confirmation of exactly where each file saved.</li>
+                    <li><strong>Debug info export</strong> - downloads a JSON snapshot of current settings, cached transcriptions, generated captions, quality data, and the processing log, for handing over when something looks wrong. Never includes API key values, only whether one is set.</li>
+                </ul>
+
+                <h2>Interface &amp; visual design</h2>
+                <ul>
+                    <li><strong>Settings reorganized for how they're actually used.</strong> Transcription provider and segmentation method - the two choices you make before generating - sit right above the Generate button, always visible. The more rarely-touched tuning settings live in a collapsible section beneath them, with a "Show Tuning Settings" shortcut next to Regenerate. A separate ⚙️ Settings panel holds API keys and save locations, out of the way of the main workflow.</li>
+                    <li><strong>Full re-theme</strong> to a Beckhoff-branded dark red / white / black palette, with a <strong>dark mode</strong> toggle (persisted, defaults to OS preference), replacing the original's generic purple/blue gradient.</li>
+                    <li><strong>Custom-built, themed audio player</strong> (play/pause, seekbar, volume, time display, CSS-drawn icons) replacing the native, unthemeable browser controls, plus a <strong>playback speed control</strong> (0.5x-2x).</li>
+                    <li><strong>Sticky header</strong> - stays pinned to the top of the page while scrolling, so Settings and What's New are always reachable.</li>
+                    <li><strong>Keyboard shortcuts</strong>: Space (play/pause), Left/Right (seek), Up/Down (jump between captions), Shift+Up/Down (jump to next/previous flagged caption), Ctrl/Cmd+Z (undo) - none of these existed before.</li>
+                    <li><strong>Collapsible, reformatted info box</strong> - the intro explanation is now a scannable bullet list instead of a wall of text, and can be collapsed once you don't need it.</li>
+                    <li><strong>Themed scrollbars</strong> matching light/dark mode.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+
+    <!--BUILD:JS-->
+</body>
+</html>

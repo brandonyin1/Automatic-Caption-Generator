@@ -12,3 +12,7 @@ Thumbs.db
 # Electron build artifacts - installed/built locally, not versioned
 electron/node_modules/
 electron/dist/
+
+# Root build tooling (build.js) currently has zero dependencies, but keep
+# this ignored in case that changes later.
+/node_modules/

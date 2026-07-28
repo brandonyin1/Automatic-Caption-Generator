@@ -1,0 +1,79 @@
+:root {
+    --color-bg: #f7f1ea;
+    --color-surface: #fffcf8;
+    --color-surface-alt: #f2e8de;
+    --color-border: #e6d8c8;
+    --color-text: #2c231d;
+    --color-text-muted: #7d6b5d;
+    --color-accent: #a4161a;
+    --color-accent-hover: #861216;
+    --color-accent-soft: #f3ded7;
+    --color-accent-contrast: #ffffff;
+    --color-black: #211712;
+    --color-black-hover: #362820;
+    --color-success: #2e7d32;
+    --color-success-bg: #eaf5e9;
+    --color-success-border: #a8d5ab;
+    --color-warning: #8a6100;
+    --color-warning-bg: #fbf1d6;
+    --color-warning-border: #e8cf8a;
+    --color-error: #a4161a;
+    --color-error-bg: #fbeae6;
+    --color-error-border: #e3a8aa;
+    --shadow-sm: 0 2px 8px rgba(44, 35, 29, 0.08);
+    --shadow-md: 0 12px 28px rgba(44, 35, 29, 0.13);
+}
+
+:root[data-theme="dark"] {
+    --color-bg: #211c19;
+    --color-surface: #2b2420;
+    --color-surface-alt: #342c27;
+    --color-border: #4a3f37;
+    --color-text: #f1e6dc;
+    --color-text-muted: #b8a99b;
+    --color-accent: #cf6a5c;
+    --color-accent-hover: #dd8272;
+    --color-accent-soft: #3d2a24;
+    --color-accent-contrast: #ffffff;
+    --color-black: #1c1613;
+    --color-black-hover: #2c2420;
+    --color-success: #8fd192;
+    --color-success-bg: #212c1e;
+    --color-success-border: #3f6b41;
+    --color-warning: #ecc873;
+    --color-warning-bg: #33291a;
+    --color-warning-border: #8a6f3f;
+    --color-error: #dd8272;
+    --color-error-bg: #33221e;
+    --color-error-border: #6e453c;
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 12px 28px rgba(0, 0, 0, 0.45);
+}
+
+/* Themed scrollbars everywhere (page body, transcript editor, progress
+   log, quality details, dictionary textarea, etc.) rather than styling
+   each scrollable container individually - scrollbar-color/-width cover
+   Firefox, the ::-webkit-scrollbar-* set covers Chrome/Edge/Safari. */
+html {
+    scrollbar-color: var(--color-border) transparent;
+    scrollbar-width: thin;
+}
+
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--color-text-muted);
+}
+
