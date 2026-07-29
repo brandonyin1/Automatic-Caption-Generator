@@ -46,7 +46,7 @@ export class ProfessionalCaptionGenerator {
                 // Bump alongside electron/package.json's "version" and the git tag
                 // on every release - this is what the update-check banner (browser
                 // build) compares the latest GitHub release against.
-                this.APP_VERSION = '1.2.0';
+                this.APP_VERSION = '1.2.1';
                 // On by default - flags real typos, at the cost of also flagging
                 // technical terms the browser's dictionary doesn't know.
                 this.spellcheckEnabled = true;

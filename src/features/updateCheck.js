@@ -95,14 +95,23 @@ export const updateCheckMethods = {
             },
 
             loadUpdateCheckPreference() {
-                const section = document.getElementById('updateCheckSection');
                 const toggle = document.getElementById('updateCheckToggle');
                 const versionDisplay = document.getElementById('currentVersionDisplay');
+                const versionDisplayElectron = document.getElementById('currentVersionDisplayElectron');
                 if (versionDisplay) versionDisplay.textContent = this.APP_VERSION;
-                // No update-relevant work to do inside the Electron wrapper - hide
-                // the toggle rather than show a setting that does nothing there.
+                if (versionDisplayElectron) versionDisplayElectron.textContent = this.APP_VERSION;
+
+                // The Electron wrapper updates itself automatically via
+                // electron-updater (main.js) - there's no per-user toggle for
+                // it, so swap in a version-only note instead of the
+                // browser-build's toggle, rather than hiding the section entirely.
                 if (window.electronAPI) {
-                    if (section) section.classList.add('hidden');
+                    const toggleLabel = document.getElementById('updateCheckToggleLabel');
+                    const helpBrowser = document.getElementById('updateCheckHelpBrowser');
+                    const helpElectron = document.getElementById('updateCheckHelpElectron');
+                    if (toggleLabel) toggleLabel.classList.add('hidden');
+                    if (helpBrowser) helpBrowser.classList.add('hidden');
+                    if (helpElectron) helpElectron.classList.remove('hidden');
                     return;
                 }
 

@@ -74,6 +74,7 @@ The original SRT viewer was strictly read-only — the only way to fix a mistake
 ## Update notifications
 
 - **Browser build**: a dismissible banner plus a "Check for updates on startup" toggle in Settings. Checks this repo's GitHub releases at most once a day and shows a banner with a link to the release if a newer version is found - never anything more invasive than that, and off entirely if the toggle is disabled. Previously there was no way to know a newer version existed short of happening to check GitHub yourself.
+- **Electron build's Settings now shows the current version too** (in place of the toggle, which doesn't apply there - this build already updates itself automatically), instead of having no update-related information at all.
 - **Electron build**: wired to the same GitHub releases via `electron-updater` instead - checks silently on launch, downloads a newer version in the background if one exists, and shows a native "Restart & Install" / "Later" dialog once it's ready. No visible Settings toggle for this build (redundant next to the native flow); nothing to see at all until an update is actually available. Requires releases to be published with `electron-builder --publish always` (not a manual upload of just the installer) so the metadata the updater reads actually exists.
 
 ## Application icon

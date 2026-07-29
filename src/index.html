@@ -402,12 +402,15 @@ eLearning</textarea>
 
                 <div class="setup-section" id="updateCheckSection">
                     <div class="setup-title">🔄 Updates</div>
-                    <label class="remember-toggle" for="updateCheckToggle" title="Once a day, checks the GitHub releases page for a newer version and shows a banner if one exists. Only ever reads the latest release info - no other data leaves your browser.">
+                    <label class="remember-toggle" for="updateCheckToggle" id="updateCheckToggleLabel" title="Once a day, checks the GitHub releases page for a newer version and shows a banner if one exists. Only ever reads the latest release info - no other data leaves your browser.">
                         <input type="checkbox" id="updateCheckToggle" checked>
                         Check for updates on startup
                     </label>
-                    <div class="api-help">
+                    <div class="api-help" id="updateCheckHelpBrowser">
                         You're on version <strong id="currentVersionDisplay"></strong>.
+                    </div>
+                    <div class="api-help hidden" id="updateCheckHelpElectron">
+                        You're on version <strong id="currentVersionDisplayElectron"></strong>. Updates are checked for automatically on launch - you'll be prompted to restart when one is ready to install.
                     </div>
                 </div>
             </div>
@@ -524,7 +527,7 @@ eLearning</textarea>
                 <h2>Update notifications</h2>
                 <ul>
                     <li><strong>Browser build:</strong> a dismissible banner plus a "Check for updates on startup" toggle in Settings. Checks this repo's GitHub releases at most once a day and shows a banner with a link if a newer version exists - nothing more invasive than that, and off entirely if the toggle is disabled.</li>
-                    <li><strong>Electron build:</strong> checks the same releases silently on launch and, if a newer version is available, downloads it in the background and shows a native "Restart &amp; Install" / "Later" dialog once it's ready. No separate Settings toggle for this build - there's simply nothing to see until an update is actually available.</li>
+                    <li><strong>Electron build:</strong> checks the same releases silently on launch and, if a newer version is available, downloads it in the background and shows a native "Restart &amp; Install" / "Later" dialog once it's ready. No separate toggle for this build - there's nothing to configure - but Settings now shows the current version number in its place.</li>
                 </ul>
 
                 <h2>Application icon</h2>

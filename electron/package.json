@@ -1,6 +1,6 @@
 {
   "name": "automatic-caption-generator",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Desktop wrapper for the Automatic Caption Generator, adding Windows \"Send To\" file-manager integration.",
   "main": "main.js",
   "private": true,
