@@ -38,13 +38,6 @@ export const updateCheckMethods = {
                         return;
                     }
 
-                    // Once dismissed, stays dismissed for that specific version -
-                    // but a version newer still than the dismissed one shows again.
-                    const dismissedVersion = localStorage.getItem(this.UPDATE_DISMISSED_VERSION_STORAGE_KEY);
-                    if (dismissedVersion && !this.isNewerVersion(latestVersion, dismissedVersion)) {
-                        return;
-                    }
-
                     this.showUpdateBanner(latestVersion, release.html_url);
                 } catch (error) {
                     // Offline, corporate proxy blocking github.com, rate-limited,
@@ -77,20 +70,16 @@ export const updateCheckMethods = {
 
                 message.textContent = `Version ${latestVersion} is available (you're on ${this.APP_VERSION}).`;
                 link.href = releaseUrl || 'https://github.com/brandonyin1/Automatic-Caption-Generator/releases/latest';
-                banner.dataset.latestVersion = latestVersion;
                 banner.classList.remove('hidden');
             },
 
+            // Only hides the banner for this page load - deliberately doesn't
+            // remember the dismissal, so the next daily check (see
+            // checkForUpdates) shows it again for as long as that version
+            // remains the latest one.
             dismissUpdateBanner() {
                 const banner = document.getElementById('updateAvailableBanner');
                 if (!banner) return;
-                if (banner.dataset.latestVersion) {
-                    try {
-                        localStorage.setItem(this.UPDATE_DISMISSED_VERSION_STORAGE_KEY, banner.dataset.latestVersion);
-                    } catch (error) {
-                        console.error('Could not save dismissed update version:', error);
-                    }
-                }
                 banner.classList.add('hidden');
             },
 

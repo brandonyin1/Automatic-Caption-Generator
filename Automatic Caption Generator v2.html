@@ -2071,7 +2071,7 @@ eLearning</textarea>
 
                 <h2>Update notifications</h2>
                 <ul>
-                    <li><strong>Browser build:</strong> a dismissible banner plus a "Check for updates on startup" toggle in Settings. Checks this repo's GitHub releases at most once a day and shows a banner with a link if a newer version exists - nothing more invasive than that, and off entirely if the toggle is disabled.</li>
+                    <li><strong>Browser build:</strong> a dismissible banner plus a "Check for updates on startup" toggle in Settings. Checks this repo's GitHub releases at most once a day and shows a banner with a link if a newer version exists - nothing more invasive than that, and off entirely if the toggle is disabled. Dismissing only clears it for the day - it comes back at the next daily check for as long as that version is still current.</li>
                     <li><strong>Electron build:</strong> checks the same releases silently on launch and, if a newer version is available, downloads it in the background and shows a native "Restart &amp; Install" / "Later" dialog once it's ready. No separate toggle for this build - there's nothing to configure - but Settings now shows the current version number in its place.</li>
                 </ul>
 
@@ -2131,11 +2131,10 @@ class ProfessionalCaptionGenerator {
                 this.TRANSCRIPTION_PROVIDER_STORAGE_KEY = 'captionGenerator.transcriptionProvider';
                 this.UPDATE_CHECK_ENABLED_STORAGE_KEY = 'captionGenerator.updateCheckEnabled';
                 this.UPDATE_LAST_CHECKED_STORAGE_KEY = 'captionGenerator.updateLastChecked';
-                this.UPDATE_DISMISSED_VERSION_STORAGE_KEY = 'captionGenerator.updateDismissedVersion';
                 // Bump alongside electron/package.json's "version" and the git tag
                 // on every release - this is what the update-check banner (browser
                 // build) compares the latest GitHub release against.
-                this.APP_VERSION = '1.2.1';
+                this.APP_VERSION = '1.2.2';
                 // On by default - flags real typos, at the cost of also flagging
                 // technical terms the browser's dictionary doesn't know.
                 this.spellcheckEnabled = true;
@@ -6157,13 +6156,6 @@ Object.assign(ProfessionalCaptionGenerator.prototype, {
                         return;
                     }
 
-                    // Once dismissed, stays dismissed for that specific version -
-                    // but a version newer still than the dismissed one shows again.
-                    const dismissedVersion = localStorage.getItem(this.UPDATE_DISMISSED_VERSION_STORAGE_KEY);
-                    if (dismissedVersion && !this.isNewerVersion(latestVersion, dismissedVersion)) {
-                        return;
-                    }
-
                     this.showUpdateBanner(latestVersion, release.html_url);
                 } catch (error) {
                     // Offline, corporate proxy blocking github.com, rate-limited,
@@ -6196,20 +6188,16 @@ Object.assign(ProfessionalCaptionGenerator.prototype, {
 
                 message.textContent = `Version ${latestVersion} is available (you're on ${this.APP_VERSION}).`;
                 link.href = releaseUrl || 'https://github.com/brandonyin1/Automatic-Caption-Generator/releases/latest';
-                banner.dataset.latestVersion = latestVersion;
                 banner.classList.remove('hidden');
             },
 
+            // Only hides the banner for this page load - deliberately doesn't
+            // remember the dismissal, so the next daily check (see
+            // checkForUpdates) shows it again for as long as that version
+            // remains the latest one.
             dismissUpdateBanner() {
                 const banner = document.getElementById('updateAvailableBanner');
                 if (!banner) return;
-                if (banner.dataset.latestVersion) {
-                    try {
-                        localStorage.setItem(this.UPDATE_DISMISSED_VERSION_STORAGE_KEY, banner.dataset.latestVersion);
-                    } catch (error) {
-                        console.error('Could not save dismissed update version:', error);
-                    }
-                }
                 banner.classList.add('hidden');
             },
 
