@@ -305,6 +305,7 @@ eLearning</textarea>
                         </div>
                         <div class="viewer-header-actions">
                             <button type="button" class="settings-reset-btn" id="undoBtn" title="Undo the last merge, split, delete, or regenerate (Ctrl+Z)" disabled>↩️ Undo</button>
+                            <button type="button" class="settings-reset-btn" id="fixIssuesBtn" title="Auto-fixes what can be fixed mechanically: extends captions that are too brief on screen or read too fast, and splits captions that are too long. Does not touch approximated/uncertain-match/text-divergence flags - those need you to actually listen and verify. One undo step for the whole pass.">🛠️ Fix Issues</button>
                             <button type="button" class="settings-reset-btn" id="findReplaceBtn" title="Find and replace text across caption(s)">🔍 Find &amp; Replace</button>
                             <label class="remember-toggle" for="spellcheckToggle" title="Flags misspelled words in caption text - note this will also flag technical terms (Beckhoff, TwinCAT, etc.) that aren't in the browser's dictionary">
                                 <input type="checkbox" id="spellcheckToggle" checked>
@@ -487,6 +488,7 @@ eLearning</textarea>
                     <li><strong>Bounded single-caption preview</strong> - clicking a caption plays only that caption's span, then pauses.</li>
                     <li><strong>Scroll position preserved</strong> across every edit, instead of jumping back to the top of a long caption list each time - and each file remembers its own scroll position when switching between tabs.</li>
                     <li><strong>Shift+↑/↓ jumps to the next flagged caption</strong>, skipping clean ones, for reviewing just what needs attention in a long file.</li>
+                    <li><strong>"Fix Issues" button</strong> (next to Undo) extends captions that are too brief or read too fast, and splits captions that are too long - all in one undoable step. Leaves approximated/uncertain-match/text-divergence flags alone, since those need a human to actually listen and verify, not a mechanical fix.</li>
                     <li><strong>Optional native spellcheck</strong> on caption text (on by default), aware that it'll flag technical jargon not in the browser's dictionary.</li>
                 </ul>
 

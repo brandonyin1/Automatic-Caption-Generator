@@ -243,6 +243,118 @@ export const editingMethods = {
             },
 
 
+            // Mechanically fixes what can actually be fixed without human judgment:
+            // captions that are too brief on screen or read too fast (extend the
+            // end time, capped at the next caption's start - same overlap-safe
+            // rule manual timestamp edits already follow) and captions that are
+            // too long (auto-split using the same sentence/clause/word-boundary
+            // priority the initial rule-based segmentation uses). Deliberately
+            // does NOT touch approximated timing, uncertain word-match confidence,
+            // text-divergence, or "very short text" flags - there's no algorithmic
+            // fix for "is this text actually correct," only a human listening to
+            // the audio can resolve those, and guessing would risk quietly
+            // papering over a real transcription error instead of surfacing it.
+            // One undo snapshot for the whole pass, matching applyFindReplace's
+            // one-snapshot-per-file convention, so Ctrl+Z reverts everything here
+            // as a single step rather than one step per caption touched.
+            autoFixCaptionIssues(fileName) {
+                const captions = this.transcripts.get(fileName);
+                if (!captions || captions.length === 0) {
+                    return;
+                }
+
+                const settings = this.getCaptionSettings();
+                const isFixableLength = (caption) => caption.text.length > settings.maxChars;
+                const isFixableTiming = (caption) => {
+                    const duration = caption.end - caption.start;
+                    const cps = duration > 0 ? caption.text.length / duration : Infinity;
+                    return duration < settings.minDuration || (isFinite(cps) && cps > settings.maxReadingSpeed);
+                };
+
+                if (!captions.some(c => isFixableLength(c) || isFixableTiming(c))) {
+                    this.showMessage('No auto-fixable timing/length issues found - anything still flagged needs a manual look.', 'info');
+                    return;
+                }
+
+                this.pushUndoSnapshot(fileName, captions);
+
+                // Pass 1: split too-long captions first (reverse order so splicing
+                // in extra pieces doesn't shift the index of captions not yet
+                // visited). Timing for each new piece is divided proportionally by
+                // character count, same as a manual Split - there's no word-level
+                // timing left to split on after the fact, so both new pieces are
+                // marked approximated for review, matching splitCaptionAtCursor.
+                let splitCount = 0;
+                for (let i = captions.length - 1; i >= 0; i--) {
+                    const caption = captions[i];
+                    if (!isFixableLength(caption)) {
+                        continue;
+                    }
+
+                    const pieces = this.splitTextByPunctuation(caption.text, settings.targetChars, settings.maxChars);
+                    if (pieces.length <= 1) {
+                        continue;
+                    }
+
+                    const totalChars = pieces.reduce((sum, p) => sum + p.length, 0);
+                    const duration = caption.end - caption.start;
+                    let cursor = caption.start;
+                    const newPieces = pieces.map((text, pieceIndex) => {
+                        const isLast = pieceIndex === pieces.length - 1;
+                        const start = cursor;
+                        const end = isLast ? caption.end : cursor + duration * (text.length / totalChars);
+                        cursor = end;
+                        return { index: 0, start, end, text, approximated: true };
+                    });
+
+                    captions.splice(i, 1, ...newPieces);
+                    splitCount++;
+                }
+
+                // Pass 2: extend duration for anything still too brief or too fast,
+                // over the post-split list - splitting can itself produce short
+                // pieces that now qualify. Only ever pushes the end time later,
+                // capped at the next caption's start, so this can't introduce a
+                // new overlap; if there's no room to reach the target, it gets as
+                // close as it safely can rather than forcing it.
+                const MIN_SLIVER = 0.05;
+                let extendedCount = 0;
+                for (let i = 0; i < captions.length; i++) {
+                    const caption = captions[i];
+                    if (!isFixableTiming(caption)) {
+                        continue;
+                    }
+
+                    const next = captions[i + 1];
+                    const ceiling = next ? Math.max(caption.start + MIN_SLIVER, next.start - MIN_SLIVER) : Infinity;
+                    const neededForMinDuration = caption.start + settings.minDuration;
+                    const neededForReadingSpeed = caption.start + (caption.text.length / settings.maxReadingSpeed);
+                    const desiredEnd = Math.max(caption.end, neededForMinDuration, neededForReadingSpeed);
+                    const newEnd = Math.min(desiredEnd, ceiling);
+
+                    if (newEnd > caption.end) {
+                        caption.end = newEnd;
+                        extendedCount++;
+                    }
+                }
+
+                this.renumberCaptions(captions);
+                this.refreshFileState(fileName, captions);
+
+                const remaining = captions.filter(c => {
+                    const issues = this.evaluateCaptionIssues(c, settings, {});
+                    return issues.some(i => !['TOO_BRIEF', 'TOO_FAST', 'TOO_LONG'].includes(i.type));
+                }).length;
+
+                const parts = [];
+                if (splitCount) parts.push(`split ${splitCount} caption${splitCount === 1 ? '' : 's'}`);
+                if (extendedCount) parts.push(`extended ${extendedCount} caption${extendedCount === 1 ? '' : 's'}`);
+                const summary = parts.length ? parts.join(', ') : 'nothing needed fixing after all';
+                const reviewNote = remaining ? ` ${remaining} caption${remaining === 1 ? '' : 's'} still flagged for manual review.` : '';
+                this.showMessage(`Auto-fix: ${summary}.${reviewNote}`, 'success');
+            },
+
+
             // Fixes a word/phrase consistently across caption text instead of
             // requiring per-caption manual edits. Scoped to either just the
             // currently-viewed file or every processed file, per the modal's

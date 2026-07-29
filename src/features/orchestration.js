@@ -272,6 +272,15 @@ export const orchestrationMethods = {
                         }
                     });
 
+                    document.getElementById('fixIssuesBtn').addEventListener('click', () => {
+                        const currentFile = this.files[this.currentFileIndex];
+                        if (currentFile) {
+                            this.autoFixCaptionIssues(currentFile.name);
+                        } else {
+                            this.showMessage('Select a processed file first.', 'warning');
+                        }
+                    });
+
                     document.addEventListener('keydown', (e) => {
                         this.handleGlobalKeydown(e);
                     });
