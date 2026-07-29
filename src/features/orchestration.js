@@ -103,6 +103,24 @@ export const orchestrationMethods = {
                         this.discardSession();
                     });
 
+                    // Update-available banner
+                    document.getElementById('dismissUpdateBtn').addEventListener('click', () => {
+                        this.dismissUpdateBanner();
+                    });
+
+                    document.getElementById('updateCheckToggle').addEventListener('change', (e) => {
+                        this.updateCheckEnabled = e.target.checked;
+                        try {
+                            localStorage.setItem(this.UPDATE_CHECK_ENABLED_STORAGE_KEY, this.updateCheckEnabled ? 'true' : 'false');
+                        } catch (error) {
+                            console.error('Could not save update-check preference:', error);
+                        }
+                        if (this.updateCheckEnabled) {
+                            localStorage.removeItem(this.UPDATE_LAST_CHECKED_STORAGE_KEY);
+                            this.checkForUpdates();
+                        }
+                    });
+
                     // Caption generation settings
                     ['settingMaxChars', 'settingTargetChars', 'settingMinDuration', 'settingMaxDuration', 'settingMaxReadingSpeed', 'settingGapThreshold', 'settingPauseThreshold', 'settingLeadIn', 'settingHold', 'settingSegmentationMethod', 'settingCustomPrompt'].forEach(id => {
                         document.getElementById(id).addEventListener('change', () => {

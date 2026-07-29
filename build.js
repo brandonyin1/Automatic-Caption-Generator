@@ -41,6 +41,7 @@ const FEATURE_MODULES = [
     'exportDownload',
     'player',
     'electronIntegration',
+    'updateCheck',
     'orchestration'
 ];
 

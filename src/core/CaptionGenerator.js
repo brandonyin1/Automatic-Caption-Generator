@@ -40,6 +40,13 @@ export class ProfessionalCaptionGenerator {
                 this.INFO_BOX_COLLAPSED_STORAGE_KEY = 'captionGenerator.infoBoxCollapsed';
                 this.SPELLCHECK_STORAGE_KEY = 'captionGenerator.spellcheckEnabled';
                 this.TRANSCRIPTION_PROVIDER_STORAGE_KEY = 'captionGenerator.transcriptionProvider';
+                this.UPDATE_CHECK_ENABLED_STORAGE_KEY = 'captionGenerator.updateCheckEnabled';
+                this.UPDATE_LAST_CHECKED_STORAGE_KEY = 'captionGenerator.updateLastChecked';
+                this.UPDATE_DISMISSED_VERSION_STORAGE_KEY = 'captionGenerator.updateDismissedVersion';
+                // Bump alongside electron/package.json's "version" and the git tag
+                // on every release - this is what the update-check banner (browser
+                // build) compares the latest GitHub release against.
+                this.APP_VERSION = '1.2.0';
                 // On by default - flags real typos, at the cost of also flagging
                 // technical terms the browser's dictionary doesn't know.
                 this.spellcheckEnabled = true;
@@ -113,6 +120,8 @@ REMEMBER: The {{maxChars}}-character maximum can never be violated. Within that 
                 this.restoreSaveLocations();
                 this.checkForRecoverableSession();
                 this.initializeElectronIntegration();
+                this.loadUpdateCheckPreference();
+                this.checkForUpdates();
                 this.initializeEventListeners();
                 this.setupDragAndDrop();
                 this.updateProcessButton();

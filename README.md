@@ -20,7 +20,7 @@ Along the way it also flags quality issues per caption (too long/brief on screen
 
 ## Usage
 
-Open `Automatic Caption Generator v2.html` (from the [latest release](https://github.com/brandonyin1/Automatic-Caption-Generator/releases/latest)) in a Chromium-based browser (custom save-location picking and drag-and-drop rely on the File System Access API, Chromium-only; the rest works in any modern browser). You'll need an API key for whichever transcription provider you use - entered once in Settings, optionally remembered in `localStorage` for next time. No server, no account, no data leaves your browser except the direct API calls to OpenAI/ElevenLabs.
+Open `Automatic Caption Generator v2.html` (from the [latest release](https://github.com/brandonyin1/Automatic-Caption-Generator/releases/latest)) in a Chromium-based browser (custom save-location picking and drag-and-drop rely on the File System Access API, Chromium-only; the rest works in any modern browser). You'll need an API key for whichever transcription provider you use - entered once in Settings, optionally remembered in `localStorage` for next time. No server, no account, no data leaves your browser except the direct API calls to OpenAI/ElevenLabs, and (once a day, at most) a read-only check against this repo's GitHub releases to show a banner if a newer version exists - toggleable off in Settings under "Updates".
 
 ## Development
 
@@ -60,6 +60,8 @@ npm run build
 ```
 
 The installer/executable is written to `electron/dist/`. Re-enable Send To integration from Settings after installing, so the shortcut points at the installed executable rather than the dev-mode path. Windows-only; the toggle doesn't appear on other platforms.
+
+A packaged (non-dev) install checks this repo's GitHub releases on launch and, once a newer one is downloaded, prompts to restart and install it - no separate download/reinstall needed. This only works from releases published with `npx electron-builder --publish always` (which uploads the `latest.yml`/`.blockmap` metadata electron-updater needs alongside the installer) - a manual `gh release upload` of just the `.exe` won't be picked up.
 
 ## Files
 

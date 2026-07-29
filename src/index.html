@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Professional Audio Caption Generator</title>
+    <!-- Inlined as a data URI, not a relative path - this file is distributed standalone
+         with no sibling assets, so a linked favicon.png would 404 for anyone who opens it
+         straight from wherever they saved it. -->
+    <link rel="icon" type="image/png" href="data:image/png;base64,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">
     <script>
         // Applied before the stylesheet paints, so there's no flash of the
         // wrong theme on load. Falls back to the OS preference if the user
@@ -43,6 +47,14 @@
             <div class="session-recovery-actions">
                 <button type="button" class="settings-reset-btn" id="restoreSessionBtn">Restore</button>
                 <button type="button" class="settings-reset-btn" id="discardSessionBtn">Discard</button>
+            </div>
+        </div>
+
+        <div class="update-available-banner hidden" id="updateAvailableBanner">
+            <div id="updateAvailableMessage"></div>
+            <div class="session-recovery-actions">
+                <a href="#" target="_blank" rel="noopener noreferrer" class="settings-reset-btn" id="updateDownloadLink">Download</a>
+                <button type="button" class="settings-reset-btn" id="dismissUpdateBtn">Dismiss</button>
             </div>
         </div>
 
@@ -387,6 +399,17 @@ eLearning</textarea>
                         Once enabled, right-click one or more audio/video files in File Explorer → Send To → Automatic Caption Generator.
                     </div>
                 </div>
+
+                <div class="setup-section" id="updateCheckSection">
+                    <div class="setup-title">🔄 Updates</div>
+                    <label class="remember-toggle" for="updateCheckToggle" title="Once a day, checks the GitHub releases page for a newer version and shows a banner if one exists. Only ever reads the latest release info - no other data leaves your browser.">
+                        <input type="checkbox" id="updateCheckToggle" checked>
+                        Check for updates on startup
+                    </label>
+                    <div class="api-help">
+                        You're on version <strong id="currentVersionDisplay"></strong>.
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -496,6 +519,17 @@ eLearning</textarea>
                     <li><strong>Keyboard shortcuts</strong>: Space (play/pause), Left/Right (seek), Up/Down (jump between captions), Shift+Up/Down (jump to next/previous flagged caption), Ctrl/Cmd+Z (undo) - none of these existed before.</li>
                     <li><strong>Collapsible, reformatted info box</strong> - the intro explanation is now a scannable bullet list instead of a wall of text, and can be collapsed once you don't need it.</li>
                     <li><strong>Themed scrollbars</strong> matching light/dark mode.</li>
+                </ul>
+
+                <h2>Update notifications</h2>
+                <ul>
+                    <li><strong>Browser build:</strong> a dismissible banner plus a "Check for updates on startup" toggle in Settings. Checks this repo's GitHub releases at most once a day and shows a banner with a link if a newer version exists - nothing more invasive than that, and off entirely if the toggle is disabled.</li>
+                    <li><strong>Electron build:</strong> checks the same releases silently on launch and, if a newer version is available, downloads it in the background and shows a native "Restart &amp; Install" / "Later" dialog once it's ready. No separate Settings toggle for this build - there's simply nothing to see until an update is actually available.</li>
+                </ul>
+
+                <h2>Application icon</h2>
+                <ul>
+                    <li><strong>Custom app icon</strong>, replacing the default Electron icon - used for the window, taskbar, and installer, and inlined as the browser tab's favicon for the plain HTML build too. The outer corners of the source artwork are transparent, so it reads as a proper rounded-square icon instead of a red rounded square sitting inside a visibly white tile.</li>
                 </ul>
             </div>
         </div>

@@ -4,6 +4,13 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { execFile } = require('child_process');
+// Not destructured here deliberately - electron-updater's `autoUpdater`
+// export is a lazy getter that constructs its updater instance (and calls
+// into Electron's `app`) on first property access. Accessing it this early
+// (before app.whenReady()) crashes with "Cannot read properties of undefined
+// (reading 'getVersion')" because `app` isn't safely usable yet. Destructured
+// instead inside initializeAutoUpdater(), which only ever runs after ready.
+const electronUpdater = require('electron-updater');
 
 // Dev and packaged builds get separate shortcut names/files, so the Send To
 // menu visibly distinguishes them ("(dev)" suffix) and so toggling Send To
@@ -97,6 +104,7 @@ function createWindow(initialFilePaths) {
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
+    icon: path.join(__dirname, 'build', 'icon.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -178,6 +186,53 @@ function createWindow(initialFilePaths) {
   });
 }
 
+// --- Auto-update ------------------------------------------------------------
+//
+// Reads the same GitHub Releases this project already publishes to (see
+// package.json's "publish" config) - a release only gets picked up once it
+// includes the latest.yml/.blockmap metadata electron-builder generates
+// alongside the installer, which means `electron-builder --publish always`
+// (not a manual `gh release upload` of just the .exe) from here on.
+//
+// Only meaningful for a packaged build: there's no update feed to check
+// against when running unpackaged (`npm start`), and electron-updater itself
+// assumes app.isPackaged is true internally.
+function initializeAutoUpdater() {
+  if (!app.isPackaged) {
+    return;
+  }
+
+  const { autoUpdater } = electronUpdater;
+
+  autoUpdater.on('update-downloaded', async (info) => {
+    if (!mainWindow) {
+      return;
+    }
+    const { response } = await dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      buttons: ['Restart && Install', 'Later'],
+      defaultId: 0,
+      cancelId: 1,
+      title: 'Update ready',
+      message: `Automatic Caption Generator ${info.version} has been downloaded.`,
+      detail: 'Restart now to install it, or it will install automatically the next time you quit the app.'
+    });
+    if (response === 0) {
+      autoUpdater.quitAndInstall();
+    }
+  });
+
+  autoUpdater.on('error', (error) => {
+    // Offline, GitHub unreachable, no releases published yet - none of this
+    // should ever interrupt normal use of the app.
+    console.error('Auto-update error (non-fatal):', error);
+  });
+
+  autoUpdater.checkForUpdates().catch(error => {
+    console.error('Update check failed (non-fatal):', error);
+  });
+}
+
 // Windows invokes a Send To target once per selection (all chosen paths as
 // separate argv entries), not once per file. If the app isn't running yet,
 // those paths arrive as this process's own argv (handled below). If it's
@@ -203,6 +258,7 @@ if (!gotLock) {
 
   app.whenReady().then(() => {
     createWindow(filePathsFromArgs(process.argv));
+    initializeAutoUpdater();
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) {

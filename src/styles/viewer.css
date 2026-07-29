@@ -353,6 +353,20 @@
     flex-shrink: 0;
 }
 
+.update-available-banner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    background: var(--color-accent-soft);
+    border: 1px solid var(--color-accent);
+    border-radius: 8px;
+    padding: 14px 20px;
+    margin: 20px 0 24px;
+    color: var(--color-text);
+}
+
 .info-box {
     background: var(--color-surface-alt);
     border-left: 4px solid var(--color-black);

@@ -71,6 +71,15 @@ The original SRT viewer was strictly read-only — the only way to fix a mistake
 - **Collapsible, reformatted info box.** The intro "Smart Caption Intelligence" explanation is now a scannable bullet list instead of a paragraph of prose, and can be collapsed once it's no longer needed (persisted).
 - **Themed scrollbars** matching light/dark mode.
 
+## Update notifications
+
+- **Browser build**: a dismissible banner plus a "Check for updates on startup" toggle in Settings. Checks this repo's GitHub releases at most once a day and shows a banner with a link to the release if a newer version is found - never anything more invasive than that, and off entirely if the toggle is disabled. Previously there was no way to know a newer version existed short of happening to check GitHub yourself.
+- **Electron build**: wired to the same GitHub releases via `electron-updater` instead - checks silently on launch, downloads a newer version in the background if one exists, and shows a native "Restart & Install" / "Later" dialog once it's ready. No visible Settings toggle for this build (redundant next to the native flow); nothing to see at all until an update is actually available. Requires releases to be published with `electron-builder --publish always` (not a manual upload of just the installer) so the metadata the updater reads actually exists.
+
+## Application icon
+
+- **Custom app icon** (previously the default Electron icon) - now used for the window, taskbar, and installer, and inlined as the browser tab's favicon for the plain HTML build too. Generated from the app's logo with the outer corners of the source image made transparent, so it renders as a proper rounded-square icon rather than a red rounded square sitting inside a visibly white tile.
+
 ## Not changed
 
 - Still a single self-contained HTML file with no build step or server — open it directly in a browser.
