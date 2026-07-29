@@ -4,10 +4,12 @@ A single-file HTML tool for turning audio/video into edited, exportable captions
 
 ## Download
 
-**[Get the latest release here](https://github.com/brandonyin1/Automatic-Caption-Generator/releases/latest)** - this is the intended way to get the files, not cloning the repo or browsing source. Each release has two assets:
+**[Get the latest release here](https://github.com/brandonyin1/Automatic-Caption-Generator/releases/latest)** - this is the intended way to get the files, not cloning the repo or browsing source. There are two files you actually want:
 
 - `Automatic Caption Generator v2.html` - open it in a browser, that's it.
 - `Automatic Caption Generator Setup *.exe` - optional Windows desktop app with File Explorer "Send To" integration. See [below](#desktop-app-optional---windows-send-to-integration).
+
+Each release also includes a `latest.yml` and a `.blockmap` file - these exist only so the desktop app can check for and download updates automatically. They're not meant to be downloaded directly; ignore them.
 
 ## What it does
 
