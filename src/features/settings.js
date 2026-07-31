@@ -236,6 +236,80 @@ export const settingsMethods = {
             },
 
 
+            // Bundles the Technical Terms Dictionary and Caption Generation
+            // Settings into one JSON file - for backing up or handing a
+            // consistent configuration to someone else, without dragging along
+            // API keys, theme, or other personal/machine-specific preferences
+            // that don't belong in a shared config. Routed through the shared
+            // downloadFile() helper (no directory handle) rather than duplicating
+            // the Blob/anchor download dance already used for captions/debug info.
+            async exportSettingsAndDictionary() {
+                const bundle = {
+                    type: 'automatic-caption-generator-settings',
+                    exportedAt: new Date().toISOString(),
+                    technicalTerms: this.getTechnicalTerms(),
+                    captionSettings: this.getCaptionSettings()
+                };
+                const content = JSON.stringify(bundle, null, 2);
+                const filename = `caption-generator-settings-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+                await this.downloadFile(content, filename, null);
+                this.showMessage('Exported dictionary and caption generation settings.', 'success');
+            },
+
+
+            // Reads a previously exported settings file and applies it, replacing
+            // whatever's currently set. Caption settings are applied by writing the
+            // incoming object into the same storage key loadCaptionSettings()
+            // already reads, then calling that loader - reuses its existing
+            // per-field validation instead of duplicating the id/key mapping here.
+            // saveCaptionSettings() afterward re-reads the now-populated inputs
+            // through getCaptionSettings() (which clamps to sane ranges) and
+            // persists that clamped version, so an imported file with an
+            // out-of-range number can't silently stick around unclamped.
+            importSettingsAndDictionary(file) {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    let parsed;
+                    try {
+                        parsed = JSON.parse(reader.result);
+                    } catch (error) {
+                        this.showMessage('Could not read that file - it does not look like valid JSON.', 'error');
+                        return;
+                    }
+
+                    const hasTerms = parsed && Array.isArray(parsed.technicalTerms);
+                    const hasSettings = parsed && parsed.captionSettings && typeof parsed.captionSettings === 'object';
+                    if (!hasTerms && !hasSettings) {
+                        this.showMessage('That file does not look like a dictionary/settings export from this tool.', 'error');
+                        return;
+                    }
+
+                    if (hasTerms) {
+                        document.getElementById('technicalTerms').value = parsed.technicalTerms.join('\n');
+                        this.saveDictionary();
+                    }
+
+                    if (hasSettings) {
+                        try {
+                            localStorage.setItem(this.CAPTION_SETTINGS_STORAGE_KEY, JSON.stringify(parsed.captionSettings));
+                        } catch (error) {
+                            console.error('Could not stage imported caption settings:', error);
+                        }
+                        this.loadCaptionSettings();
+                        this.updatePromptEditorVisibility();
+                        this.saveCaptionSettings();
+                    }
+
+                    this.updateProcessButton();
+                    this.showMessage('Imported dictionary and/or caption generation settings.', 'success');
+                };
+                reader.onerror = () => {
+                    this.showMessage('Could not read the selected file.', 'error');
+                };
+                reader.readAsText(file);
+            },
+
+
             resetCaptionSettings() {
                 const defaults = this.DEFAULT_CAPTION_SETTINGS;
                 document.getElementById('settingMaxChars').value = defaults.maxChars;

@@ -243,20 +243,77 @@ export const editingMethods = {
             },
 
 
+            // Splits text as close to the midpoint as possible - a sentence end
+            // near the middle first, then a clause boundary, then just the
+            // nearest word boundary to the middle - always producing exactly 2
+            // pieces (or 1, if the text is a single word that can't usefully
+            // split further). Used by autoFixCaptionIssues for a caption that's
+            // too long in on-screen TIME despite short text with no natural
+            // targetChars-sized break for splitTextByPunctuation to land on;
+            // unlike that function (which aims for an approximate per-piece
+            // SIZE), this always aims for a roughly even split regardless of size,
+            // matching "just cut this long fragment in half."
+            splitTextNearMiddle(text) {
+                const trimmed = text.trim();
+                const mid = trimmed.length / 2;
+                const tolerance = trimmed.length * 0.25;
+
+                const nearestBoundary = (regex) => {
+                    let best = null;
+                    let bestDistance = Infinity;
+                    for (const m of trimmed.matchAll(new RegExp(regex, 'g'))) {
+                        const pos = m.index + m[0].length;
+                        if (pos <= 0 || pos >= trimmed.length) continue;
+                        const distance = Math.abs(pos - mid);
+                        if (distance < bestDistance) {
+                            bestDistance = distance;
+                            best = pos;
+                        }
+                    }
+                    return best !== null && bestDistance <= tolerance ? best : null;
+                };
+
+                let splitPos = nearestBoundary('[.!?]+\\s+');
+                if (splitPos === null) {
+                    splitPos = nearestBoundary('[,;:]\\s+');
+                }
+                if (splitPos === null) {
+                    let best = null;
+                    let bestDistance = Infinity;
+                    for (let i = 0; i < trimmed.length; i++) {
+                        if (trimmed[i] === ' ') {
+                            const distance = Math.abs(i - mid);
+                            if (distance < bestDistance) {
+                                bestDistance = distance;
+                                best = i + 1;
+                            }
+                        }
+                    }
+                    splitPos = best;
+                }
+
+                if (splitPos === null || splitPos <= 0 || splitPos >= trimmed.length) {
+                    return [trimmed];
+                }
+                return [trimmed.slice(0, splitPos).trim(), trimmed.slice(splitPos).trim()];
+            },
+
+
             // Mechanically fixes what can actually be fixed without human judgment:
             // captions that are too brief on screen or read too fast (extend the
             // end time, capped at the next caption's start - same overlap-safe
             // rule manual timestamp edits already follow) and captions that are
-            // too long (auto-split using the same sentence/clause/word-boundary
-            // priority the initial rule-based segmentation uses). Deliberately
-            // does NOT touch approximated timing, uncertain word-match confidence,
-            // text-divergence, or "very short text" flags - there's no algorithmic
-            // fix for "is this text actually correct," only a human listening to
-            // the audio can resolve those, and guessing would risk quietly
-            // papering over a real transcription error instead of surfacing it.
-            // One undo snapshot for the whole pass, matching applyFindReplace's
-            // one-snapshot-per-file convention, so Ctrl+Z reverts everything here
-            // as a single step rather than one step per caption touched.
+            // too long, whether in characters or in on-screen duration (auto-split
+            // using the same sentence/clause/word-boundary priority the initial
+            // rule-based segmentation uses). Deliberately does NOT touch
+            // approximated timing, uncertain word-match confidence, text-
+            // divergence, or "very short text" flags - there's no algorithmic fix
+            // for "is this text actually correct," only a human listening to the
+            // audio can resolve those, and guessing would risk quietly papering
+            // over a real transcription error instead of surfacing it. One undo
+            // snapshot for the whole pass, matching applyFindReplace's one-
+            // snapshot-per-file convention, so Ctrl+Z reverts everything here as a
+            // single step rather than one step per caption touched.
             autoFixCaptionIssues(fileName) {
                 const captions = this.transcripts.get(fileName);
                 if (!captions || captions.length === 0) {
@@ -264,14 +321,17 @@ export const editingMethods = {
                 }
 
                 const settings = this.getCaptionSettings();
-                const isFixableLength = (caption) => caption.text.length > settings.maxChars;
+                const isFixableBySplit = (caption) => {
+                    const duration = caption.end - caption.start;
+                    return caption.text.length > settings.maxChars || duration > settings.maxDuration;
+                };
                 const isFixableTiming = (caption) => {
                     const duration = caption.end - caption.start;
                     const cps = duration > 0 ? caption.text.length / duration : Infinity;
                     return duration < settings.minDuration || (isFinite(cps) && cps > settings.maxReadingSpeed);
                 };
 
-                if (!captions.some(c => isFixableLength(c) || isFixableTiming(c))) {
+                if (!captions.some(c => isFixableBySplit(c) || isFixableTiming(c))) {
                     this.showMessage('No auto-fixable timing/length issues found - anything still flagged needs a manual look.', 'info');
                     return;
                 }
@@ -280,29 +340,59 @@ export const editingMethods = {
 
                 // Pass 1: split too-long captions first (reverse order so splicing
                 // in extra pieces doesn't shift the index of captions not yet
-                // visited). Timing for each new piece is divided proportionally by
-                // character count, same as a manual Split - there's no word-level
-                // timing left to split on after the fact, so both new pieces are
-                // marked approximated for review, matching splitCaptionAtCursor.
+                // visited), in two stages. Stage 1 handles too much CHARACTER
+                // length exactly like the initial generation's splitOversizedUnit
+                // (sentence, then clause, then word-boundary priority). Stage 2
+                // catches what stage 1 can't: a caption can be too long in
+                // on-screen TIME despite short text (a slow, deliberately-paced
+                // sentence with no internal punctuation for splitTextByPunctuation
+                // to work with) - each piece's likely duration is estimated by its
+                // share of the caption's original text length, and anything still
+                // over maxDuration gets halved near its middle, repeating until
+                // every piece is estimated under the cap or can't usefully split
+                // further (down to a single word). Timing for the final pieces is
+                // divided proportionally by character count, same as a manual
+                // Split - there's no word-level timing left to split on after the
+                // fact, so all pieces are marked approximated for review.
                 let splitCount = 0;
                 for (let i = captions.length - 1; i >= 0; i--) {
                     const caption = captions[i];
-                    if (!isFixableLength(caption)) {
+                    if (!isFixableBySplit(caption)) {
                         continue;
                     }
 
-                    const pieces = this.splitTextByPunctuation(caption.text, settings.targetChars, settings.maxChars);
+                    const duration = caption.end - caption.start;
+                    const totalChars = caption.text.length;
+
+                    let pieces = this.splitTextByPunctuation(caption.text, settings.targetChars, settings.maxChars);
+
+                    let changed = true;
+                    while (changed) {
+                        changed = false;
+                        const next = [];
+                        for (const piece of pieces) {
+                            const estimatedDuration = duration * (piece.length / totalChars);
+                            const halves = estimatedDuration > settings.maxDuration
+                                ? this.splitTextNearMiddle(piece)
+                                : [piece];
+                            if (halves.length > 1) {
+                                changed = true;
+                            }
+                            next.push(...halves);
+                        }
+                        pieces = next;
+                    }
+
                     if (pieces.length <= 1) {
                         continue;
                     }
 
-                    const totalChars = pieces.reduce((sum, p) => sum + p.length, 0);
-                    const duration = caption.end - caption.start;
+                    const finalTotalChars = pieces.reduce((sum, p) => sum + p.length, 0);
                     let cursor = caption.start;
                     const newPieces = pieces.map((text, pieceIndex) => {
                         const isLast = pieceIndex === pieces.length - 1;
                         const start = cursor;
-                        const end = isLast ? caption.end : cursor + duration * (text.length / totalChars);
+                        const end = isLast ? caption.end : cursor + duration * (text.length / finalTotalChars);
                         cursor = end;
                         return { index: 0, start, end, text, approximated: true };
                     });
@@ -311,12 +401,66 @@ export const editingMethods = {
                     splitCount++;
                 }
 
-                // Pass 2: extend duration for anything still too brief or too fast,
-                // over the post-split list - splitting can itself produce short
-                // pieces that now qualify. Only ever pushes the end time later,
-                // capped at the next caption's start, so this can't introduce a
-                // new overlap; if there's no room to reach the target, it gets as
-                // close as it safely can rather than forcing it.
+                // Pass 2: merge a too-brief/too-fast caption into an adjacent one
+                // when it looks like a fragment of the same clause rather than a
+                // genuinely complete short caption - a real sentence essentially
+                // never ends without terminal punctuation, so a caption whose text
+                // doesn't end in one was almost certainly cut off mid-clause,
+                // continuing into whatever comes next. Tries merging forward first
+                // (into the next caption) since that's the far more common shape;
+                // falls back to merging backward only when the PREVIOUS caption is
+                // the one missing its terminal punctuation instead (this caption
+                // completes it). Only merges when the combined text and duration
+                // both fit within settings, so this never trades one flagged
+                // caption for a newly-oversized one - and runs before the extend
+                // pass below, so a fragment that can be sensibly completed doesn't
+                // get artificially stretched in place instead. Reverse order for
+                // the same splice-safety reason as the split pass above.
+                const endsSentence = (text) => /[.!?]\s*$/.test(text.trim());
+                let mergedCount = 0;
+                for (let i = captions.length - 1; i >= 0; i--) {
+                    const caption = captions[i];
+                    if (!isFixableTiming(caption)) {
+                        continue;
+                    }
+
+                    const next = captions[i + 1];
+                    if (next && !endsSentence(caption.text)) {
+                        const mergedText = `${caption.text} ${next.text}`.trim();
+                        const mergedDuration = next.end - caption.start;
+                        if (mergedText.length <= settings.maxChars && mergedDuration <= settings.maxDuration) {
+                            next.text = mergedText;
+                            next.start = caption.start;
+                            delete next.matchConfidence;
+                            delete next.approximated;
+                            captions.splice(i, 1);
+                            mergedCount++;
+                            continue;
+                        }
+                    }
+
+                    const prev = captions[i - 1];
+                    if (prev && !endsSentence(prev.text)) {
+                        const mergedText = `${prev.text} ${caption.text}`.trim();
+                        const mergedDuration = caption.end - prev.start;
+                        if (mergedText.length <= settings.maxChars && mergedDuration <= settings.maxDuration) {
+                            prev.text = mergedText;
+                            prev.end = caption.end;
+                            delete prev.matchConfidence;
+                            delete prev.approximated;
+                            captions.splice(i, 1);
+                            mergedCount++;
+                        }
+                    }
+                }
+
+                // Pass 3: extend duration for anything still too brief or too fast
+                // - whatever merging couldn't sensibly resolve (a genuinely
+                // complete short caption with no fitting merge candidate). Only
+                // ever pushes the end time later, capped at the next caption's
+                // start, so this can't introduce a new overlap; if there's no room
+                // to reach the target, it gets as close as it safely can rather
+                // than forcing it.
                 const MIN_SLIVER = 0.05;
                 let extendedCount = 0;
                 for (let i = 0; i < captions.length; i++) {
@@ -343,11 +487,12 @@ export const editingMethods = {
 
                 const remaining = captions.filter(c => {
                     const issues = this.evaluateCaptionIssues(c, settings, {});
-                    return issues.some(i => !['TOO_BRIEF', 'TOO_FAST', 'TOO_LONG'].includes(i.type));
+                    return issues.some(i => !['TOO_BRIEF', 'TOO_FAST', 'TOO_LONG', 'TOO_LONG_DURATION'].includes(i.type));
                 }).length;
 
                 const parts = [];
                 if (splitCount) parts.push(`split ${splitCount} caption${splitCount === 1 ? '' : 's'}`);
+                if (mergedCount) parts.push(`merged ${mergedCount} caption${mergedCount === 1 ? '' : 's'}`);
                 if (extendedCount) parts.push(`extended ${extendedCount} caption${extendedCount === 1 ? '' : 's'}`);
                 const summary = parts.length ? parts.join(', ') : 'nothing needed fixing after all';
                 const reviewNote = remaining ? ` ${remaining} caption${remaining === 1 ? '' : 's'} still flagged for manual review.` : '';

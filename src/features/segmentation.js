@@ -430,21 +430,61 @@ export const segmentationMethods = {
                 const tokens = (fullTranscript || '').match(/[\wʼ'-]+[.,!?;:]*/g) || [];
                 const normalize = (s) => (s || '').toLowerCase().replace(/[^\w']/g, '');
 
+                // A token like "non-TwinSAFE" or "I-O." can correspond to
+                // MULTIPLE raw words if Whisper itself split the hyphenated
+                // compound into separate ones (observed for real: "non-TwinSAFE"
+                // -> "non"+"TwinSAFE", "I-O" -> "I"+"O") - matching it whole would
+                // let the first raw word's fuzzy/substring match consume the
+                // ENTIRE token, stranding the next raw word with no match at all
+                // (a duplicated or orphaned single-word caption in the final
+                // text). Only reached as a fallback when a token doesn't match a
+                // word exactly - a raw word that already has the hyphen intact
+                // (Whisper doesn't always split them) matches on the fast path
+                // below and never needs this.
+                const explodeHyphenatedToken = (token) => {
+                    const trailingPunctMatch = token.match(/[.,!?;:]+$/);
+                    const trailingPunct = trailingPunctMatch ? trailingPunctMatch[0] : '';
+                    const core = trailingPunct ? token.slice(0, -trailingPunct.length) : token;
+                    const parts = core.split('-');
+                    if (parts.length < 2 || parts.some(p => !p)) {
+                        return null;
+                    }
+                    return parts.map((part, i) => part + (i === parts.length - 1 ? trailingPunct : '-'));
+                };
+
+                const tokenQueue = tokens.slice();
                 let tokenCursor = 0;
+
                 return words.map(w => {
                     const target = normalize(w.word);
                     if (!target) {
                         return w;
                     }
 
-                    const searchLimit = Math.min(tokenCursor + 6, tokens.length);
-                    for (let pos = tokenCursor; pos < searchLimit; pos++) {
-                        const tokenNormalized = normalize(tokens[pos]);
-                        if (tokenNormalized && (tokenNormalized === target ||
-                            tokenNormalized.includes(target) || target.includes(tokenNormalized))) {
-                            tokenCursor = pos + 1;
-                            return { ...w, word: tokens[pos] };
+                    let pos = tokenCursor;
+                    while (pos < Math.min(tokenCursor + 6, tokenQueue.length)) {
+                        const tokenNormalized = normalize(tokenQueue[pos]);
+                        if (!tokenNormalized) {
+                            pos++;
+                            continue;
                         }
+
+                        if (tokenNormalized === target) {
+                            tokenCursor = pos + 1;
+                            return { ...w, word: tokenQueue[pos] };
+                        }
+
+                        if (tokenNormalized.includes(target) || target.includes(tokenNormalized)) {
+                            const exploded = explodeHyphenatedToken(tokenQueue[pos]);
+                            if (exploded) {
+                                tokenQueue.splice(pos, 1, ...exploded);
+                                continue; // re-examine the same position - now the first exploded part
+                            }
+                            tokenCursor = pos + 1;
+                            return { ...w, word: tokenQueue[pos] };
+                        }
+
+                        pos++;
                     }
 
                     // No confident match nearby - leave this word as-is and don't
@@ -496,6 +536,35 @@ export const segmentationMethods = {
             // Builds captions directly from word timestamps, with no fuzzy text
             // matching involved at all - this is rule-based segmentation in full:
             // one call to splitWordsIntoCaptions across the entire transcript.
+            // A trailing period doesn't always end a sentence: a spelled-out
+            // abbreviation read aloud (I/O as "I dot O dot") or a URL Whisper's
+            // own transcript renders with literal periods (www.example.com) look
+            // identical to a real sentence end by punctuation alone, and word-
+            // level timestamps don't carry an "is this abbreviated" flag to check
+            // instead. Suppresses the false break in either of two shapes that
+            // cover both cases without needing real NLP:
+            //  - the word just completed is a bare 1-2 letter token (the shape
+            //    of a spelled-out abbreviation like "I." or "O.", as opposed to a
+            //    real word/acronym like "PLC." which ends a genuine sentence);
+            //  - the next word starts with a lowercase letter - a real new
+            //    sentence is virtually always capitalized, so a lowercase
+            //    continuation ("com" right after "www.") means this period was
+            //    structural, not sentence-final.
+            looksLikeAbbreviation(currentWord, nextWord) {
+                const bareWord = (currentWord.word || '').replace(/[.,!?;:]+$/, '');
+                if (/^[A-Za-z]{1,2}$/.test(bareWord)) {
+                    return true;
+                }
+                if (nextWord && nextWord.word) {
+                    const firstChar = nextWord.word.trim().charAt(0);
+                    if (/[a-z]/.test(firstChar)) {
+                        return true;
+                    }
+                }
+                return false;
+            },
+
+
             buildRuleBasedCaptions(words, settings) {
                 const pieces = this.splitWordsIntoCaptions(words, 0, words.length - 1, settings);
                 const captions = pieces.map((piece, i) => ({
@@ -557,7 +626,7 @@ export const segmentationMethods = {
                     current.push(w);
                     prevEnd = w.end;
 
-                    if (/[.!?]$/.test(this.joinWordsToText(current))) {
+                    if (/[.!?]$/.test(this.joinWordsToText(current)) && !this.looksLikeAbbreviation(w, words[i + 1])) {
                         flushUnit();
                     }
                 }
@@ -583,25 +652,35 @@ export const segmentationMethods = {
 
             // Splits one over-long unit (a sentence, or a pause-bounded fragment,
             // that doesn't fit within maxChars/maxDuration on its own) into pieces
-            // close to targetChars each, instead of greedily filling each piece up
-            // to maxChars and leaving a short, awkward remainder dangling at the
-            // end. Picks a piece count from targetChars (rounded to the nearest
-            // whole piece, not just "as few as needed to stay under maxChars"),
-            // then breaks near each piece's ideal balanced boundary - preferring a
-            // nearby clause boundary (comma/semicolon/colon) within a tolerance
-            // window, falling back to the word boundary closest to the ideal
-            // point once the overshoot grows too large. maxChars/maxDuration are
-            // still checked before every word is added, so they remain a true
-            // ceiling no matter how the ideal boundaries land.
+            // balanced by on-screen TIME rather than raw character count, instead
+            // of greedily filling each piece up to maxChars and leaving a short,
+            // awkward remainder dangling at the end. Piece count factors in
+            // duration as well as length (a unit can be short in text but still
+            // exceed maxDuration - e.g. a slow, deliberately-paced sentence with
+            // longer pauses - and needs splitting even though targetChars/maxChars
+            // alone would say it fits in one caption), then breaks near each
+            // piece's ideal time-balanced boundary - preferring a nearby clause
+            // boundary (comma/semicolon/colon) within a tolerance window, falling
+            // back to the word boundary closest to the ideal point once the
+            // overshoot grows too large. Balancing by time instead of characters
+            // tracks almost identically to the old character-based approach for
+            // normally-paced speech (the two are roughly proportional), while
+            // actually fixing the slow-paced case instead of silently leaving it
+            // as one long caption. maxChars/maxDuration are still checked before
+            // every word is added, so they remain a true ceiling no matter how
+            // the ideal boundaries land.
             splitOversizedUnit(unit, settings) {
+                const unitStart = unit[0].start;
+                const unitDuration = unit[unit.length - 1].end - unitStart;
                 const fullText = this.joinWordsToText(unit);
                 const numPieces = Math.max(
                     1,
                     Math.round(fullText.length / settings.targetChars),
-                    Math.ceil(fullText.length / settings.maxChars)
+                    Math.ceil(fullText.length / settings.maxChars),
+                    Math.ceil(unitDuration / settings.maxDuration)
                 );
-                const idealChunkSize = fullText.length / numPieces;
-                const tolerance = idealChunkSize * 0.4;
+                const idealChunkDuration = unitDuration / numPieces;
+                const durationTolerance = idealChunkDuration * 0.4;
 
                 const pieces = [];
                 let current = [];
@@ -637,12 +716,13 @@ export const segmentationMethods = {
                         continue;
                     }
 
-                    const textSoFar = this.joinWordsToText(current);
-                    const idealBoundary = (pieceIndex + 1) * idealChunkSize;
-                    if (textSoFar.length >= idealBoundary) {
+                    const elapsedSoFar = current[current.length - 1].end - unitStart;
+                    const idealBoundary = (pieceIndex + 1) * idealChunkDuration;
+                    if (elapsedSoFar >= idealBoundary) {
+                        const textSoFar = this.joinWordsToText(current);
                         const endsClause = /[,;:]$/.test(textSoFar);
-                        const overshoot = textSoFar.length - idealBoundary;
-                        if (endsClause || overshoot >= tolerance) {
+                        const overshoot = elapsedSoFar - idealBoundary;
+                        if (endsClause || overshoot >= durationTolerance) {
                             flush();
                         }
                     }
@@ -661,6 +741,7 @@ export const segmentationMethods = {
                 return wordsSlice.map(w => w.word)
                     .join(' ')
                     .replace(/\s+/g, ' ')
+                    .replace(/-\s+/g, '-')
                     .replace(/\s+([.,!?;:])/g, '$1')
                     .trim();
             },
@@ -708,14 +789,24 @@ export const segmentationMethods = {
                 // gap-elimination below then only has to mop up whatever small gap
                 // is left over (often zero) instead of closing the room padding
                 // needs before it gets a chance to use it.
-                this.applyCaptionPadding(captions, settings.leadIn, settings.hold);
+                this.applyCaptionPadding(captions, settings.leadIn, settings.hold, settings.maxDuration);
 
+                // Capped at maxDuration - closing a gap is meant to avoid a
+                // moment with no caption on screen, not to stretch a caption that
+                // was already a safe length into one that overruns the limit.
+                // Splitting decisions (splitOversizedUnit) already ran against
+                // each caption's un-gap-closed span, so nothing downstream
+                // re-checks this - without the cap, a caption that was correctly
+                // left whole (its real speech comfortably under maxDuration) could
+                // still end up flagged too-long purely from absorbing a trailing
+                // gap here.
                 for (let i = 1; i < captions.length; i++) {
                     const previous = captions[i - 1];
                     const current = captions[i];
                     const gap = current.start - previous.end;
                     if (gap > 0 && gap < settings.gapThreshold) {
-                        previous.end = current.start;
+                        const maxAllowedEnd = previous.start + settings.maxDuration;
+                        previous.end = Math.min(current.start, maxAllowedEnd);
                     }
                 }
 
@@ -741,7 +832,7 @@ export const segmentationMethods = {
             // no lookahead. When there isn't enough real gap for the full amount,
             // it silently applies less (down to zero) rather than ever
             // overlapping the neighboring caption.
-            applyCaptionPadding(captions, leadInSeconds, holdSeconds) {
+            applyCaptionPadding(captions, leadInSeconds, holdSeconds, maxDuration) {
                 if (!leadInSeconds && !holdSeconds) return;
 
                 for (let i = 0; i < captions.length; i++) {
@@ -755,6 +846,14 @@ export const segmentationMethods = {
                     if (holdSeconds > 0) {
                         const latestAllowed = i < captions.length - 1 ? captions[i + 1].start : Infinity;
                         caption.end = Math.min(latestAllowed, caption.end + holdSeconds);
+                    }
+
+                    // Neither adjustment above is meant to let a caption grow past
+                    // maxDuration - both exist purely to feel less abrupt at the
+                    // edges, not to override the length limit that already shaped
+                    // how many pieces this caption was split into.
+                    if (maxDuration && (caption.end - caption.start) > maxDuration) {
+                        caption.end = caption.start + maxDuration;
                     }
                 }
             },

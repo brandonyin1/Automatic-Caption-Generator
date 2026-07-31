@@ -96,7 +96,7 @@ eLearning</textarea>
 
         <div class="info-box">
             <div class="info-title-row">
-                <div class="info-title">🧠 Smart Caption Intelligence + Video Processing</div>
+                <div class="info-title">🧠 How It Works</div>
                 <button type="button" class="settings-reset-btn" id="toggleInfoBoxBtn" aria-expanded="true">Collapse</button>
             </div>
             <div class="info-content" id="infoBoxContent">
@@ -118,6 +118,9 @@ eLearning</textarea>
             <div class="settings-title-row">
                 <div class="settings-title">🎛️ Caption Generation Settings</div>
                 <div class="prompt-editor-header-actions">
+                    <button type="button" class="settings-reset-btn" id="exportSettingsBtn" title="Downloads a JSON file with your Technical Terms Dictionary and Caption Generation Settings below - handy for backing up or sharing a consistent configuration with someone else. Never includes API keys.">⬇️ Export</button>
+                    <button type="button" class="settings-reset-btn" id="importSettingsBtn" title="Loads a Technical Terms Dictionary + Caption Generation Settings from a previously exported JSON file, replacing what's currently set.">⬆️ Import</button>
+                    <input type="file" id="importSettingsInput" accept=".json,application/json" class="hidden">
                     <button type="button" class="settings-reset-btn" id="resetCaptionSettings">Reset to defaults</button>
                     <button type="button" class="settings-reset-btn" id="toggleCaptionTuningBtn" aria-expanded="false">Show tuning settings</button>
                 </div>
@@ -157,7 +160,7 @@ eLearning</textarea>
                     </label>
                     <label for="settingMaxDuration">Maximum time on screen
                         <div class="input-with-unit">
-                            <input type="number" id="settingMaxDuration" min="1" max="20" step="0.5" value="7.0">
+                            <input type="number" id="settingMaxDuration" min="1" max="20" step="0.5" value="5.0">
                             <span class="input-unit">s</span>
                         </div>
                     </label>
@@ -305,7 +308,7 @@ eLearning</textarea>
                         </div>
                         <div class="viewer-header-actions">
                             <button type="button" class="settings-reset-btn" id="undoBtn" title="Undo the last merge, split, delete, or regenerate (Ctrl+Z)" disabled>↩️ Undo</button>
-                            <button type="button" class="settings-reset-btn" id="fixIssuesBtn" title="Auto-fixes what can be fixed mechanically: extends captions that are too brief on screen or read too fast, and splits captions that are too long. Does not touch approximated/uncertain-match/text-divergence flags - those need you to actually listen and verify. One undo step for the whole pass.">🛠️ Fix Issues</button>
+                            <button type="button" class="settings-reset-btn" id="fixIssuesBtn" title="Auto-fixes what can be fixed mechanically: merges a too-brief/too-fast caption into an adjacent one when it looks like the same clause and the result fits within limits, otherwise extends it; and splits captions that are too long in characters or in on-screen time. Does not touch approximated/uncertain-match/text-divergence flags - those need you to actually listen and verify. One undo step for the whole pass.">🛠️ Fix Issues</button>
                             <button type="button" class="settings-reset-btn" id="findReplaceBtn" title="Find and replace text across caption(s)">🔍 Find &amp; Replace</button>
                             <label class="remember-toggle" for="spellcheckToggle" title="Flags misspelled words in caption text - note this will also flag technical terms (Beckhoff, TwinCAT, etc.) that aren't in the browser's dictionary">
                                 <input type="checkbox" id="spellcheckToggle" checked>
@@ -464,15 +467,19 @@ eLearning</textarea>
                     <li><strong>Fixed AI-segmented captions scrambling, especially toward the end of longer files.</strong> The old matcher searched fresh for each caption's timing and, if even one word failed to match (e.g. a hyphenated term tokenized two different ways), permanently lost its place - every caption after that point kept searching from the wrong position for the rest of the file. Segmentation now aligns the whole transcript to word timestamps once, then walks the AI's chosen segments against that alignment in lockstep, so a single mismatch only affects the one caption instead of cascading.</li>
                     <li><strong>Fixed missing punctuation in captions.</strong> Whisper/ElevenLabs' word-level timestamps come back without punctuation attached, even though the full transcript has it - so captions built from word timing were silently losing every period and comma. Punctuation is now restored from the full transcript before segmentation runs.</li>
                     <li><strong>GPT segmentation truncation fix</strong> - transcripts are chunked before being sent for segmentation, so a long file can no longer produce a GPT response that gets cut off mid-JSON.</li>
+                    <li><strong>Fixed hyphenated compounds</strong> (<code>non-TwinSAFE</code>, <code>I-O</code>) producing duplicated or orphaned single-word captions - restoring punctuation onto Whisper's bare words could let one word's fuzzy match swallow an entire hyphenated transcript token, stranding the next word with no match at all.</li>
                 </ul>
 
                 <h2>Caption generation quality</h2>
                 <ul>
-                    <li><strong>Configurable caption settings</strong> (max/target characters, min/max time on screen, max reading speed, gap-merge threshold, pause-break threshold, lead-in/hold padding), with a reset-to-defaults button - previously every one of these was a hardcoded constant.</li>
+                    <li><strong>Configurable caption settings</strong> (max/target characters, min/max time on screen, max reading speed, gap-merge threshold, pause-break threshold, lead-in/hold padding), with a reset-to-defaults button - previously every one of these was a hardcoded constant. Default maximum time on screen is 5 seconds (previously 7).</li>
+                    <li><strong>Export/import the dictionary and caption settings</strong> as a single JSON file, via buttons next to Reset to defaults - for backing up a tuned configuration or handing a colleague the exact same setup. Never includes API keys or other personal preferences.</li>
                     <li><strong>Choice of segmentation method.</strong> Rule-based (the default) splits at sentence ends first, then commas/semicolons, then clause boundaries, with word boundaries only as a last resort - guaranteed by code, free, and instant. AI-assisted segmentation is still available for anyone who prefers a model's judgment call, with the same rule-based limits applied underneath as a mechanical safety net.</li>
                     <li><strong>Pause-aware breaking and a maximum time-on-screen cap</strong> - captions now also break on long silences between words, not just punctuation, and are capped at a configurable maximum duration rather than only ever having a minimum.</li>
                     <li><strong>Lead-in/hold timing padding.</strong> Captions now start slightly before and end slightly after the literal spoken word (defaults: 0.1s early, 0.2s held) - standard captioning practice, since syncing exactly to speech onset/offset reads as slightly late. Provably never overlaps a neighboring caption.</li>
                     <li><strong>Rule-based captions now aim for target length</strong> instead of packing every caption to the maximum. Previously, a long sentence was chopped as large as possible over and over, leaving whatever was left at the very end standing alone as a short, awkward "dangling" caption.</li>
+                    <li><strong>Fixed abbreviations and URLs fragmenting into one-letter captions</strong> (e.g. "Safe I." / "O." / "can be dispersed..." from I/O read aloud, or <code>www.</code> / <code>example.</code> / <code>com.</code> from a spoken URL) - a trailing period is no longer always treated as a sentence end.</li>
+                    <li><strong>Fixed captions that were too long in on-screen time but not in character count never getting split.</strong> Piece count for an over-long sentence now factors in duration as well as length, and two steps that run after that splitting decision - closing small gaps between captions, and lead-in/hold padding - are both capped at the maximum duration too, so they can no longer push an already-correct caption back over the limit.</li>
                     <li><strong>Editable, resettable AI prompt</strong> for anyone using AI segmentation, with placeholders for the character limits and transcript that fill in automatically.</li>
                     <li><strong>Regenerate without re-transcribing</strong> - re-run segmentation/timing after changing settings without paying for transcription again.</li>
                 </ul>
@@ -488,7 +495,7 @@ eLearning</textarea>
                     <li><strong>Bounded single-caption preview</strong> - clicking a caption plays only that caption's span, then pauses.</li>
                     <li><strong>Scroll position preserved</strong> across every edit, instead of jumping back to the top of a long caption list each time - and each file remembers its own scroll position when switching between tabs.</li>
                     <li><strong>Shift+↑/↓ jumps to the next flagged caption</strong>, skipping clean ones, for reviewing just what needs attention in a long file.</li>
-                    <li><strong>"Fix Issues" button</strong> (next to Undo) extends captions that are too brief or read too fast, and splits captions that are too long - all in one undoable step. Leaves approximated/uncertain-match/text-divergence flags alone, since those need a human to actually listen and verify, not a mechanical fix.</li>
+                    <li><strong>"Fix Issues" button</strong> (next to Undo) merges a too-brief or too-fast caption into an adjacent one when it looks like a fragment of the same clause and the combined result fits within limits, otherwise extends it instead; and splits captions that are too long - whether in characters or in on-screen time - all in one undoable step. Leaves approximated/uncertain-match/text-divergence flags alone, since those need a human to actually listen and verify, not a mechanical fix.</li>
                     <li><strong>Optional native spellcheck</strong> on caption text (on by default), aware that it'll flag technical jargon not in the browser's dictionary.</li>
                 </ul>
 
@@ -523,6 +530,8 @@ eLearning</textarea>
                     <li><strong>Sticky header</strong> - stays pinned to the top of the page while scrolling, so Settings and What's New are always reachable.</li>
                     <li><strong>Keyboard shortcuts</strong>: Space (play/pause), Left/Right (seek), Up/Down (jump between captions), Shift+Up/Down (jump to next/previous flagged caption), Ctrl/Cmd+Z (undo) - none of these existed before.</li>
                     <li><strong>Collapsible, reformatted info box</strong> - the intro explanation is now a scannable bullet list instead of a wall of text, and can be collapsed once you don't need it.</li>
+                    <li><strong>Toast notifications now fade in and out</strong> instead of abruptly appearing and disappearing.</li>
+                    <li><strong>Unified the left-accented boxes' styling</strong> (Technical Terms Dictionary, How It Works, Caption Generation Settings, Settings modal sections) - all now share the same rounded corners and colored accent border.</li>
                     <li><strong>Themed scrollbars</strong> matching light/dark mode.</li>
                 </ul>
 

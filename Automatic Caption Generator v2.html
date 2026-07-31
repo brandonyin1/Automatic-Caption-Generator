@@ -320,7 +320,7 @@ body {
 .setup-section {
     background: var(--color-surface-alt);
     border: 1px solid var(--color-border);
-    border-left: 4px solid var(--color-black);
+    border-left: 4px solid var(--color-accent);
     border-radius: 12px;
     padding: 20px;
     margin-bottom: 25px;
@@ -435,7 +435,7 @@ body {
 .settings-section {
     background: var(--color-surface-alt);
     border: 1px solid var(--color-border);
-    border-left: 4px solid var(--color-black);
+    border-left: 4px solid var(--color-accent);
     border-radius: 12px;
     padding: 20px;
     margin-bottom: 25px;
@@ -1219,6 +1219,12 @@ body {
     border-radius: 8px;
     margin: 15px 0;
     font-weight: 500;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.message.visible {
+    opacity: 1;
 }
 
 .error {
@@ -1275,10 +1281,11 @@ body {
 
 .info-box {
     background: var(--color-surface-alt);
-    border-left: 4px solid var(--color-black);
+    border: 1px solid var(--color-border);
+    border-left: 4px solid var(--color-accent);
     padding: 20px;
     margin: 20px 0;
-    border-radius: 0 8px 8px 0;
+    border-radius: 12px;
 }
 
 .info-title-row {
@@ -1641,7 +1648,7 @@ eLearning</textarea>
 
         <div class="info-box">
             <div class="info-title-row">
-                <div class="info-title">🧠 Smart Caption Intelligence + Video Processing</div>
+                <div class="info-title">🧠 How It Works</div>
                 <button type="button" class="settings-reset-btn" id="toggleInfoBoxBtn" aria-expanded="true">Collapse</button>
             </div>
             <div class="info-content" id="infoBoxContent">
@@ -1663,6 +1670,9 @@ eLearning</textarea>
             <div class="settings-title-row">
                 <div class="settings-title">🎛️ Caption Generation Settings</div>
                 <div class="prompt-editor-header-actions">
+                    <button type="button" class="settings-reset-btn" id="exportSettingsBtn" title="Downloads a JSON file with your Technical Terms Dictionary and Caption Generation Settings below - handy for backing up or sharing a consistent configuration with someone else. Never includes API keys.">⬇️ Export</button>
+                    <button type="button" class="settings-reset-btn" id="importSettingsBtn" title="Loads a Technical Terms Dictionary + Caption Generation Settings from a previously exported JSON file, replacing what's currently set.">⬆️ Import</button>
+                    <input type="file" id="importSettingsInput" accept=".json,application/json" class="hidden">
                     <button type="button" class="settings-reset-btn" id="resetCaptionSettings">Reset to defaults</button>
                     <button type="button" class="settings-reset-btn" id="toggleCaptionTuningBtn" aria-expanded="false">Show tuning settings</button>
                 </div>
@@ -1702,7 +1712,7 @@ eLearning</textarea>
                     </label>
                     <label for="settingMaxDuration">Maximum time on screen
                         <div class="input-with-unit">
-                            <input type="number" id="settingMaxDuration" min="1" max="20" step="0.5" value="7.0">
+                            <input type="number" id="settingMaxDuration" min="1" max="20" step="0.5" value="5.0">
                             <span class="input-unit">s</span>
                         </div>
                     </label>
@@ -1850,7 +1860,7 @@ eLearning</textarea>
                         </div>
                         <div class="viewer-header-actions">
                             <button type="button" class="settings-reset-btn" id="undoBtn" title="Undo the last merge, split, delete, or regenerate (Ctrl+Z)" disabled>↩️ Undo</button>
-                            <button type="button" class="settings-reset-btn" id="fixIssuesBtn" title="Auto-fixes what can be fixed mechanically: extends captions that are too brief on screen or read too fast, and splits captions that are too long. Does not touch approximated/uncertain-match/text-divergence flags - those need you to actually listen and verify. One undo step for the whole pass.">🛠️ Fix Issues</button>
+                            <button type="button" class="settings-reset-btn" id="fixIssuesBtn" title="Auto-fixes what can be fixed mechanically: merges a too-brief/too-fast caption into an adjacent one when it looks like the same clause and the result fits within limits, otherwise extends it; and splits captions that are too long in characters or in on-screen time. Does not touch approximated/uncertain-match/text-divergence flags - those need you to actually listen and verify. One undo step for the whole pass.">🛠️ Fix Issues</button>
                             <button type="button" class="settings-reset-btn" id="findReplaceBtn" title="Find and replace text across caption(s)">🔍 Find &amp; Replace</button>
                             <label class="remember-toggle" for="spellcheckToggle" title="Flags misspelled words in caption text - note this will also flag technical terms (Beckhoff, TwinCAT, etc.) that aren't in the browser's dictionary">
                                 <input type="checkbox" id="spellcheckToggle" checked>
@@ -2009,15 +2019,19 @@ eLearning</textarea>
                     <li><strong>Fixed AI-segmented captions scrambling, especially toward the end of longer files.</strong> The old matcher searched fresh for each caption's timing and, if even one word failed to match (e.g. a hyphenated term tokenized two different ways), permanently lost its place - every caption after that point kept searching from the wrong position for the rest of the file. Segmentation now aligns the whole transcript to word timestamps once, then walks the AI's chosen segments against that alignment in lockstep, so a single mismatch only affects the one caption instead of cascading.</li>
                     <li><strong>Fixed missing punctuation in captions.</strong> Whisper/ElevenLabs' word-level timestamps come back without punctuation attached, even though the full transcript has it - so captions built from word timing were silently losing every period and comma. Punctuation is now restored from the full transcript before segmentation runs.</li>
                     <li><strong>GPT segmentation truncation fix</strong> - transcripts are chunked before being sent for segmentation, so a long file can no longer produce a GPT response that gets cut off mid-JSON.</li>
+                    <li><strong>Fixed hyphenated compounds</strong> (<code>non-TwinSAFE</code>, <code>I-O</code>) producing duplicated or orphaned single-word captions - restoring punctuation onto Whisper's bare words could let one word's fuzzy match swallow an entire hyphenated transcript token, stranding the next word with no match at all.</li>
                 </ul>
 
                 <h2>Caption generation quality</h2>
                 <ul>
-                    <li><strong>Configurable caption settings</strong> (max/target characters, min/max time on screen, max reading speed, gap-merge threshold, pause-break threshold, lead-in/hold padding), with a reset-to-defaults button - previously every one of these was a hardcoded constant.</li>
+                    <li><strong>Configurable caption settings</strong> (max/target characters, min/max time on screen, max reading speed, gap-merge threshold, pause-break threshold, lead-in/hold padding), with a reset-to-defaults button - previously every one of these was a hardcoded constant. Default maximum time on screen is 5 seconds (previously 7).</li>
+                    <li><strong>Export/import the dictionary and caption settings</strong> as a single JSON file, via buttons next to Reset to defaults - for backing up a tuned configuration or handing a colleague the exact same setup. Never includes API keys or other personal preferences.</li>
                     <li><strong>Choice of segmentation method.</strong> Rule-based (the default) splits at sentence ends first, then commas/semicolons, then clause boundaries, with word boundaries only as a last resort - guaranteed by code, free, and instant. AI-assisted segmentation is still available for anyone who prefers a model's judgment call, with the same rule-based limits applied underneath as a mechanical safety net.</li>
                     <li><strong>Pause-aware breaking and a maximum time-on-screen cap</strong> - captions now also break on long silences between words, not just punctuation, and are capped at a configurable maximum duration rather than only ever having a minimum.</li>
                     <li><strong>Lead-in/hold timing padding.</strong> Captions now start slightly before and end slightly after the literal spoken word (defaults: 0.1s early, 0.2s held) - standard captioning practice, since syncing exactly to speech onset/offset reads as slightly late. Provably never overlaps a neighboring caption.</li>
                     <li><strong>Rule-based captions now aim for target length</strong> instead of packing every caption to the maximum. Previously, a long sentence was chopped as large as possible over and over, leaving whatever was left at the very end standing alone as a short, awkward "dangling" caption.</li>
+                    <li><strong>Fixed abbreviations and URLs fragmenting into one-letter captions</strong> (e.g. "Safe I." / "O." / "can be dispersed..." from I/O read aloud, or <code>www.</code> / <code>example.</code> / <code>com.</code> from a spoken URL) - a trailing period is no longer always treated as a sentence end.</li>
+                    <li><strong>Fixed captions that were too long in on-screen time but not in character count never getting split.</strong> Piece count for an over-long sentence now factors in duration as well as length, and two steps that run after that splitting decision - closing small gaps between captions, and lead-in/hold padding - are both capped at the maximum duration too, so they can no longer push an already-correct caption back over the limit.</li>
                     <li><strong>Editable, resettable AI prompt</strong> for anyone using AI segmentation, with placeholders for the character limits and transcript that fill in automatically.</li>
                     <li><strong>Regenerate without re-transcribing</strong> - re-run segmentation/timing after changing settings without paying for transcription again.</li>
                 </ul>
@@ -2033,7 +2047,7 @@ eLearning</textarea>
                     <li><strong>Bounded single-caption preview</strong> - clicking a caption plays only that caption's span, then pauses.</li>
                     <li><strong>Scroll position preserved</strong> across every edit, instead of jumping back to the top of a long caption list each time - and each file remembers its own scroll position when switching between tabs.</li>
                     <li><strong>Shift+↑/↓ jumps to the next flagged caption</strong>, skipping clean ones, for reviewing just what needs attention in a long file.</li>
-                    <li><strong>"Fix Issues" button</strong> (next to Undo) extends captions that are too brief or read too fast, and splits captions that are too long - all in one undoable step. Leaves approximated/uncertain-match/text-divergence flags alone, since those need a human to actually listen and verify, not a mechanical fix.</li>
+                    <li><strong>"Fix Issues" button</strong> (next to Undo) merges a too-brief or too-fast caption into an adjacent one when it looks like a fragment of the same clause and the combined result fits within limits, otherwise extends it instead; and splits captions that are too long - whether in characters or in on-screen time - all in one undoable step. Leaves approximated/uncertain-match/text-divergence flags alone, since those need a human to actually listen and verify, not a mechanical fix.</li>
                     <li><strong>Optional native spellcheck</strong> on caption text (on by default), aware that it'll flag technical jargon not in the browser's dictionary.</li>
                 </ul>
 
@@ -2068,6 +2082,8 @@ eLearning</textarea>
                     <li><strong>Sticky header</strong> - stays pinned to the top of the page while scrolling, so Settings and What's New are always reachable.</li>
                     <li><strong>Keyboard shortcuts</strong>: Space (play/pause), Left/Right (seek), Up/Down (jump between captions), Shift+Up/Down (jump to next/previous flagged caption), Ctrl/Cmd+Z (undo) - none of these existed before.</li>
                     <li><strong>Collapsible, reformatted info box</strong> - the intro explanation is now a scannable bullet list instead of a wall of text, and can be collapsed once you don't need it.</li>
+                    <li><strong>Toast notifications now fade in and out</strong> instead of abruptly appearing and disappearing.</li>
+                    <li><strong>Unified the left-accented boxes' styling</strong> (Technical Terms Dictionary, How It Works, Caption Generation Settings, Settings modal sections) - all now share the same rounded corners and colored accent border.</li>
                     <li><strong>Themed scrollbars</strong> matching light/dark mode.</li>
                 </ul>
 
@@ -2136,7 +2152,7 @@ class ProfessionalCaptionGenerator {
                 // Bump alongside electron/package.json's "version" and the git tag
                 // on every release - this is what the update-check banner (browser
                 // build) compares the latest GitHub release against.
-                this.APP_VERSION = '1.3.0';
+                this.APP_VERSION = '1.4.0';
                 // On by default - flags real typos, at the cost of also flagging
                 // technical terms the browser's dictionary doesn't know.
                 this.spellcheckEnabled = true;
@@ -2151,7 +2167,7 @@ class ProfessionalCaptionGenerator {
                     maxChars: 60,
                     targetChars: 40,
                     minDuration: 1.0,
-                    maxDuration: 7.0,
+                    maxDuration: 5.0,
                     maxReadingSpeed: 20,
                     gapThreshold: 1.0,
                     pauseThreshold: 0.6,
@@ -3241,21 +3257,61 @@ Object.assign(ProfessionalCaptionGenerator.prototype, {
                 const tokens = (fullTranscript || '').match(/[\wʼ'-]+[.,!?;:]*/g) || [];
                 const normalize = (s) => (s || '').toLowerCase().replace(/[^\w']/g, '');
 
+                // A token like "non-TwinSAFE" or "I-O." can correspond to
+                // MULTIPLE raw words if Whisper itself split the hyphenated
+                // compound into separate ones (observed for real: "non-TwinSAFE"
+                // -> "non"+"TwinSAFE", "I-O" -> "I"+"O") - matching it whole would
+                // let the first raw word's fuzzy/substring match consume the
+                // ENTIRE token, stranding the next raw word with no match at all
+                // (a duplicated or orphaned single-word caption in the final
+                // text). Only reached as a fallback when a token doesn't match a
+                // word exactly - a raw word that already has the hyphen intact
+                // (Whisper doesn't always split them) matches on the fast path
+                // below and never needs this.
+                const explodeHyphenatedToken = (token) => {
+                    const trailingPunctMatch = token.match(/[.,!?;:]+$/);
+                    const trailingPunct = trailingPunctMatch ? trailingPunctMatch[0] : '';
+                    const core = trailingPunct ? token.slice(0, -trailingPunct.length) : token;
+                    const parts = core.split('-');
+                    if (parts.length < 2 || parts.some(p => !p)) {
+                        return null;
+                    }
+                    return parts.map((part, i) => part + (i === parts.length - 1 ? trailingPunct : '-'));
+                };
+
+                const tokenQueue = tokens.slice();
                 let tokenCursor = 0;
+
                 return words.map(w => {
                     const target = normalize(w.word);
                     if (!target) {
                         return w;
                     }
 
-                    const searchLimit = Math.min(tokenCursor + 6, tokens.length);
-                    for (let pos = tokenCursor; pos < searchLimit; pos++) {
-                        const tokenNormalized = normalize(tokens[pos]);
-                        if (tokenNormalized && (tokenNormalized === target ||
-                            tokenNormalized.includes(target) || target.includes(tokenNormalized))) {
-                            tokenCursor = pos + 1;
-                            return { ...w, word: tokens[pos] };
+                    let pos = tokenCursor;
+                    while (pos < Math.min(tokenCursor + 6, tokenQueue.length)) {
+                        const tokenNormalized = normalize(tokenQueue[pos]);
+                        if (!tokenNormalized) {
+                            pos++;
+                            continue;
                         }
+
+                        if (tokenNormalized === target) {
+                            tokenCursor = pos + 1;
+                            return { ...w, word: tokenQueue[pos] };
+                        }
+
+                        if (tokenNormalized.includes(target) || target.includes(tokenNormalized)) {
+                            const exploded = explodeHyphenatedToken(tokenQueue[pos]);
+                            if (exploded) {
+                                tokenQueue.splice(pos, 1, ...exploded);
+                                continue; // re-examine the same position - now the first exploded part
+                            }
+                            tokenCursor = pos + 1;
+                            return { ...w, word: tokenQueue[pos] };
+                        }
+
+                        pos++;
                     }
 
                     // No confident match nearby - leave this word as-is and don't
@@ -3307,6 +3363,35 @@ Object.assign(ProfessionalCaptionGenerator.prototype, {
             // Builds captions directly from word timestamps, with no fuzzy text
             // matching involved at all - this is rule-based segmentation in full:
             // one call to splitWordsIntoCaptions across the entire transcript.
+            // A trailing period doesn't always end a sentence: a spelled-out
+            // abbreviation read aloud (I/O as "I dot O dot") or a URL Whisper's
+            // own transcript renders with literal periods (www.example.com) look
+            // identical to a real sentence end by punctuation alone, and word-
+            // level timestamps don't carry an "is this abbreviated" flag to check
+            // instead. Suppresses the false break in either of two shapes that
+            // cover both cases without needing real NLP:
+            //  - the word just completed is a bare 1-2 letter token (the shape
+            //    of a spelled-out abbreviation like "I." or "O.", as opposed to a
+            //    real word/acronym like "PLC." which ends a genuine sentence);
+            //  - the next word starts with a lowercase letter - a real new
+            //    sentence is virtually always capitalized, so a lowercase
+            //    continuation ("com" right after "www.") means this period was
+            //    structural, not sentence-final.
+            looksLikeAbbreviation(currentWord, nextWord) {
+                const bareWord = (currentWord.word || '').replace(/[.,!?;:]+$/, '');
+                if (/^[A-Za-z]{1,2}$/.test(bareWord)) {
+                    return true;
+                }
+                if (nextWord && nextWord.word) {
+                    const firstChar = nextWord.word.trim().charAt(0);
+                    if (/[a-z]/.test(firstChar)) {
+                        return true;
+                    }
+                }
+                return false;
+            },
+
+
             buildRuleBasedCaptions(words, settings) {
                 const pieces = this.splitWordsIntoCaptions(words, 0, words.length - 1, settings);
                 const captions = pieces.map((piece, i) => ({
@@ -3368,7 +3453,7 @@ Object.assign(ProfessionalCaptionGenerator.prototype, {
                     current.push(w);
                     prevEnd = w.end;
 
-                    if (/[.!?]$/.test(this.joinWordsToText(current))) {
+                    if (/[.!?]$/.test(this.joinWordsToText(current)) && !this.looksLikeAbbreviation(w, words[i + 1])) {
                         flushUnit();
                     }
                 }
@@ -3394,25 +3479,35 @@ Object.assign(ProfessionalCaptionGenerator.prototype, {
 
             // Splits one over-long unit (a sentence, or a pause-bounded fragment,
             // that doesn't fit within maxChars/maxDuration on its own) into pieces
-            // close to targetChars each, instead of greedily filling each piece up
-            // to maxChars and leaving a short, awkward remainder dangling at the
-            // end. Picks a piece count from targetChars (rounded to the nearest
-            // whole piece, not just "as few as needed to stay under maxChars"),
-            // then breaks near each piece's ideal balanced boundary - preferring a
-            // nearby clause boundary (comma/semicolon/colon) within a tolerance
-            // window, falling back to the word boundary closest to the ideal
-            // point once the overshoot grows too large. maxChars/maxDuration are
-            // still checked before every word is added, so they remain a true
-            // ceiling no matter how the ideal boundaries land.
+            // balanced by on-screen TIME rather than raw character count, instead
+            // of greedily filling each piece up to maxChars and leaving a short,
+            // awkward remainder dangling at the end. Piece count factors in
+            // duration as well as length (a unit can be short in text but still
+            // exceed maxDuration - e.g. a slow, deliberately-paced sentence with
+            // longer pauses - and needs splitting even though targetChars/maxChars
+            // alone would say it fits in one caption), then breaks near each
+            // piece's ideal time-balanced boundary - preferring a nearby clause
+            // boundary (comma/semicolon/colon) within a tolerance window, falling
+            // back to the word boundary closest to the ideal point once the
+            // overshoot grows too large. Balancing by time instead of characters
+            // tracks almost identically to the old character-based approach for
+            // normally-paced speech (the two are roughly proportional), while
+            // actually fixing the slow-paced case instead of silently leaving it
+            // as one long caption. maxChars/maxDuration are still checked before
+            // every word is added, so they remain a true ceiling no matter how
+            // the ideal boundaries land.
             splitOversizedUnit(unit, settings) {
+                const unitStart = unit[0].start;
+                const unitDuration = unit[unit.length - 1].end - unitStart;
                 const fullText = this.joinWordsToText(unit);
                 const numPieces = Math.max(
                     1,
                     Math.round(fullText.length / settings.targetChars),
-                    Math.ceil(fullText.length / settings.maxChars)
+                    Math.ceil(fullText.length / settings.maxChars),
+                    Math.ceil(unitDuration / settings.maxDuration)
                 );
-                const idealChunkSize = fullText.length / numPieces;
-                const tolerance = idealChunkSize * 0.4;
+                const idealChunkDuration = unitDuration / numPieces;
+                const durationTolerance = idealChunkDuration * 0.4;
 
                 const pieces = [];
                 let current = [];
@@ -3448,12 +3543,13 @@ Object.assign(ProfessionalCaptionGenerator.prototype, {
                         continue;
                     }
 
-                    const textSoFar = this.joinWordsToText(current);
-                    const idealBoundary = (pieceIndex + 1) * idealChunkSize;
-                    if (textSoFar.length >= idealBoundary) {
+                    const elapsedSoFar = current[current.length - 1].end - unitStart;
+                    const idealBoundary = (pieceIndex + 1) * idealChunkDuration;
+                    if (elapsedSoFar >= idealBoundary) {
+                        const textSoFar = this.joinWordsToText(current);
                         const endsClause = /[,;:]$/.test(textSoFar);
-                        const overshoot = textSoFar.length - idealBoundary;
-                        if (endsClause || overshoot >= tolerance) {
+                        const overshoot = elapsedSoFar - idealBoundary;
+                        if (endsClause || overshoot >= durationTolerance) {
                             flush();
                         }
                     }
@@ -3472,6 +3568,7 @@ Object.assign(ProfessionalCaptionGenerator.prototype, {
                 return wordsSlice.map(w => w.word)
                     .join(' ')
                     .replace(/\s+/g, ' ')
+                    .replace(/-\s+/g, '-')
                     .replace(/\s+([.,!?;:])/g, '$1')
                     .trim();
             },
@@ -3519,14 +3616,24 @@ Object.assign(ProfessionalCaptionGenerator.prototype, {
                 // gap-elimination below then only has to mop up whatever small gap
                 // is left over (often zero) instead of closing the room padding
                 // needs before it gets a chance to use it.
-                this.applyCaptionPadding(captions, settings.leadIn, settings.hold);
+                this.applyCaptionPadding(captions, settings.leadIn, settings.hold, settings.maxDuration);
 
+                // Capped at maxDuration - closing a gap is meant to avoid a
+                // moment with no caption on screen, not to stretch a caption that
+                // was already a safe length into one that overruns the limit.
+                // Splitting decisions (splitOversizedUnit) already ran against
+                // each caption's un-gap-closed span, so nothing downstream
+                // re-checks this - without the cap, a caption that was correctly
+                // left whole (its real speech comfortably under maxDuration) could
+                // still end up flagged too-long purely from absorbing a trailing
+                // gap here.
                 for (let i = 1; i < captions.length; i++) {
                     const previous = captions[i - 1];
                     const current = captions[i];
                     const gap = current.start - previous.end;
                     if (gap > 0 && gap < settings.gapThreshold) {
-                        previous.end = current.start;
+                        const maxAllowedEnd = previous.start + settings.maxDuration;
+                        previous.end = Math.min(current.start, maxAllowedEnd);
                     }
                 }
 
@@ -3552,7 +3659,7 @@ Object.assign(ProfessionalCaptionGenerator.prototype, {
             // no lookahead. When there isn't enough real gap for the full amount,
             // it silently applies less (down to zero) rather than ever
             // overlapping the neighboring caption.
-            applyCaptionPadding(captions, leadInSeconds, holdSeconds) {
+            applyCaptionPadding(captions, leadInSeconds, holdSeconds, maxDuration) {
                 if (!leadInSeconds && !holdSeconds) return;
 
                 for (let i = 0; i < captions.length; i++) {
@@ -3566,6 +3673,14 @@ Object.assign(ProfessionalCaptionGenerator.prototype, {
                     if (holdSeconds > 0) {
                         const latestAllowed = i < captions.length - 1 ? captions[i + 1].start : Infinity;
                         caption.end = Math.min(latestAllowed, caption.end + holdSeconds);
+                    }
+
+                    // Neither adjustment above is meant to let a caption grow past
+                    // maxDuration - both exist purely to feel less abrupt at the
+                    // edges, not to override the length limit that already shaped
+                    // how many pieces this caption was split into.
+                    if (maxDuration && (caption.end - caption.start) > maxDuration) {
+                        caption.end = caption.start + maxDuration;
                     }
                 }
             },
@@ -4066,20 +4181,77 @@ Object.assign(ProfessionalCaptionGenerator.prototype, {
             },
 
 
+            // Splits text as close to the midpoint as possible - a sentence end
+            // near the middle first, then a clause boundary, then just the
+            // nearest word boundary to the middle - always producing exactly 2
+            // pieces (or 1, if the text is a single word that can't usefully
+            // split further). Used by autoFixCaptionIssues for a caption that's
+            // too long in on-screen TIME despite short text with no natural
+            // targetChars-sized break for splitTextByPunctuation to land on;
+            // unlike that function (which aims for an approximate per-piece
+            // SIZE), this always aims for a roughly even split regardless of size,
+            // matching "just cut this long fragment in half."
+            splitTextNearMiddle(text) {
+                const trimmed = text.trim();
+                const mid = trimmed.length / 2;
+                const tolerance = trimmed.length * 0.25;
+
+                const nearestBoundary = (regex) => {
+                    let best = null;
+                    let bestDistance = Infinity;
+                    for (const m of trimmed.matchAll(new RegExp(regex, 'g'))) {
+                        const pos = m.index + m[0].length;
+                        if (pos <= 0 || pos >= trimmed.length) continue;
+                        const distance = Math.abs(pos - mid);
+                        if (distance < bestDistance) {
+                            bestDistance = distance;
+                            best = pos;
+                        }
+                    }
+                    return best !== null && bestDistance <= tolerance ? best : null;
+                };
+
+                let splitPos = nearestBoundary('[.!?]+\\s+');
+                if (splitPos === null) {
+                    splitPos = nearestBoundary('[,;:]\\s+');
+                }
+                if (splitPos === null) {
+                    let best = null;
+                    let bestDistance = Infinity;
+                    for (let i = 0; i < trimmed.length; i++) {
+                        if (trimmed[i] === ' ') {
+                            const distance = Math.abs(i - mid);
+                            if (distance < bestDistance) {
+                                bestDistance = distance;
+                                best = i + 1;
+                            }
+                        }
+                    }
+                    splitPos = best;
+                }
+
+                if (splitPos === null || splitPos <= 0 || splitPos >= trimmed.length) {
+                    return [trimmed];
+                }
+                return [trimmed.slice(0, splitPos).trim(), trimmed.slice(splitPos).trim()];
+            },
+
+
             // Mechanically fixes what can actually be fixed without human judgment:
             // captions that are too brief on screen or read too fast (extend the
             // end time, capped at the next caption's start - same overlap-safe
             // rule manual timestamp edits already follow) and captions that are
-            // too long (auto-split using the same sentence/clause/word-boundary
-            // priority the initial rule-based segmentation uses). Deliberately
-            // does NOT touch approximated timing, uncertain word-match confidence,
-            // text-divergence, or "very short text" flags - there's no algorithmic
-            // fix for "is this text actually correct," only a human listening to
-            // the audio can resolve those, and guessing would risk quietly
-            // papering over a real transcription error instead of surfacing it.
-            // One undo snapshot for the whole pass, matching applyFindReplace's
-            // one-snapshot-per-file convention, so Ctrl+Z reverts everything here
-            // as a single step rather than one step per caption touched.
+            // too long, whether in characters or in on-screen duration (auto-split
+            // using the same sentence/clause/word-boundary priority the initial
+            // rule-based segmentation uses). Deliberately does NOT touch
+            // approximated timing, uncertain word-match confidence, text-
+            // divergence, or "very short text" flags - there's no algorithmic fix
+            // for "is this text actually correct," only a human listening to the
+            // audio can resolve those, and guessing would risk quietly papering
+            // over a real transcription error instead of surfacing it. One undo
+            // snapshot for the whole pass, matching applyFindReplace's one-
+            // snapshot-per-file convention, so Ctrl+Z reverts everything here as a
+            // single step rather than one step per caption touched.
             autoFixCaptionIssues(fileName) {
                 const captions = this.transcripts.get(fileName);
                 if (!captions || captions.length === 0) {
@@ -4087,14 +4259,17 @@ Object.assign(ProfessionalCaptionGenerator.prototype, {
                 }
 
                 const settings = this.getCaptionSettings();
-                const isFixableLength = (caption) => caption.text.length > settings.maxChars;
+                const isFixableBySplit = (caption) => {
+                    const duration = caption.end - caption.start;
+                    return caption.text.length > settings.maxChars || duration > settings.maxDuration;
+                };
                 const isFixableTiming = (caption) => {
                     const duration = caption.end - caption.start;
                     const cps = duration > 0 ? caption.text.length / duration : Infinity;
                     return duration < settings.minDuration || (isFinite(cps) && cps > settings.maxReadingSpeed);
                 };
 
-                if (!captions.some(c => isFixableLength(c) || isFixableTiming(c))) {
+                if (!captions.some(c => isFixableBySplit(c) || isFixableTiming(c))) {
                     this.showMessage('No auto-fixable timing/length issues found - anything still flagged needs a manual look.', 'info');
                     return;
                 }
@@ -4103,29 +4278,59 @@ Object.assign(ProfessionalCaptionGenerator.prototype, {
 
                 // Pass 1: split too-long captions first (reverse order so splicing
                 // in extra pieces doesn't shift the index of captions not yet
-                // visited). Timing for each new piece is divided proportionally by
-                // character count, same as a manual Split - there's no word-level
-                // timing left to split on after the fact, so both new pieces are
-                // marked approximated for review, matching splitCaptionAtCursor.
+                // visited), in two stages. Stage 1 handles too much CHARACTER
+                // length exactly like the initial generation's splitOversizedUnit
+                // (sentence, then clause, then word-boundary priority). Stage 2
+                // catches what stage 1 can't: a caption can be too long in
+                // on-screen TIME despite short text (a slow, deliberately-paced
+                // sentence with no internal punctuation for splitTextByPunctuation
+                // to work with) - each piece's likely duration is estimated by its
+                // share of the caption's original text length, and anything still
+                // over maxDuration gets halved near its middle, repeating until
+                // every piece is estimated under the cap or can't usefully split
+                // further (down to a single word). Timing for the final pieces is
+                // divided proportionally by character count, same as a manual
+                // Split - there's no word-level timing left to split on after the
+                // fact, so all pieces are marked approximated for review.
                 let splitCount = 0;
                 for (let i = captions.length - 1; i >= 0; i--) {
                     const caption = captions[i];
-                    if (!isFixableLength(caption)) {
+                    if (!isFixableBySplit(caption)) {
                         continue;
                     }
 
-                    const pieces = this.splitTextByPunctuation(caption.text, settings.targetChars, settings.maxChars);
+                    const duration = caption.end - caption.start;
+                    const totalChars = caption.text.length;
+
+                    let pieces = this.splitTextByPunctuation(caption.text, settings.targetChars, settings.maxChars);
+
+                    let changed = true;
+                    while (changed) {
+                        changed = false;
+                        const next = [];
+                        for (const piece of pieces) {
+                            const estimatedDuration = duration * (piece.length / totalChars);
+                            const halves = estimatedDuration > settings.maxDuration
+                                ? this.splitTextNearMiddle(piece)
+                                : [piece];
+                            if (halves.length > 1) {
+                                changed = true;
+                            }
+                            next.push(...halves);
+                        }
+                        pieces = next;
+                    }
+
                     if (pieces.length <= 1) {
                         continue;
                     }
 
-                    const totalChars = pieces.reduce((sum, p) => sum + p.length, 0);
-                    const duration = caption.end - caption.start;
+                    const finalTotalChars = pieces.reduce((sum, p) => sum + p.length, 0);
                     let cursor = caption.start;
                     const newPieces = pieces.map((text, pieceIndex) => {
                         const isLast = pieceIndex === pieces.length - 1;
                         const start = cursor;
-                        const end = isLast ? caption.end : cursor + duration * (text.length / totalChars);
+                        const end = isLast ? caption.end : cursor + duration * (text.length / finalTotalChars);
                         cursor = end;
                         return { index: 0, start, end, text, approximated: true };
                     });
@@ -4134,12 +4339,66 @@ Object.assign(ProfessionalCaptionGenerator.prototype, {
                     splitCount++;
                 }
 
-                // Pass 2: extend duration for anything still too brief or too fast,
-                // over the post-split list - splitting can itself produce short
-                // pieces that now qualify. Only ever pushes the end time later,
-                // capped at the next caption's start, so this can't introduce a
-                // new overlap; if there's no room to reach the target, it gets as
-                // close as it safely can rather than forcing it.
+                // Pass 2: merge a too-brief/too-fast caption into an adjacent one
+                // when it looks like a fragment of the same clause rather than a
+                // genuinely complete short caption - a real sentence essentially
+                // never ends without terminal punctuation, so a caption whose text
+                // doesn't end in one was almost certainly cut off mid-clause,
+                // continuing into whatever comes next. Tries merging forward first
+                // (into the next caption) since that's the far more common shape;
+                // falls back to merging backward only when the PREVIOUS caption is
+                // the one missing its terminal punctuation instead (this caption
+                // completes it). Only merges when the combined text and duration
+                // both fit within settings, so this never trades one flagged
+                // caption for a newly-oversized one - and runs before the extend
+                // pass below, so a fragment that can be sensibly completed doesn't
+                // get artificially stretched in place instead. Reverse order for
+                // the same splice-safety reason as the split pass above.
+                const endsSentence = (text) => /[.!?]\s*$/.test(text.trim());
+                let mergedCount = 0;
+                for (let i = captions.length - 1; i >= 0; i--) {
+                    const caption = captions[i];
+                    if (!isFixableTiming(caption)) {
+                        continue;
+                    }
+
+                    const next = captions[i + 1];
+                    if (next && !endsSentence(caption.text)) {
+                        const mergedText = `${caption.text} ${next.text}`.trim();
+                        const mergedDuration = next.end - caption.start;
+                        if (mergedText.length <= settings.maxChars && mergedDuration <= settings.maxDuration) {
+                            next.text = mergedText;
+                            next.start = caption.start;
+                            delete next.matchConfidence;
+                            delete next.approximated;
+                            captions.splice(i, 1);
+                            mergedCount++;
+                            continue;
+                        }
+                    }
+
+                    const prev = captions[i - 1];
+                    if (prev && !endsSentence(prev.text)) {
+                        const mergedText = `${prev.text} ${caption.text}`.trim();
+                        const mergedDuration = caption.end - prev.start;
+                        if (mergedText.length <= settings.maxChars && mergedDuration <= settings.maxDuration) {
+                            prev.text = mergedText;
+                            prev.end = caption.end;
+                            delete prev.matchConfidence;
+                            delete prev.approximated;
+                            captions.splice(i, 1);
+                            mergedCount++;
+                        }
+                    }
+                }
+
+                // Pass 3: extend duration for anything still too brief or too fast
+                // - whatever merging couldn't sensibly resolve (a genuinely
+                // complete short caption with no fitting merge candidate). Only
+                // ever pushes the end time later, capped at the next caption's
+                // start, so this can't introduce a new overlap; if there's no room
+                // to reach the target, it gets as close as it safely can rather
+                // than forcing it.
                 const MIN_SLIVER = 0.05;
                 let extendedCount = 0;
                 for (let i = 0; i < captions.length; i++) {
@@ -4166,11 +4425,12 @@ Object.assign(ProfessionalCaptionGenerator.prototype, {
 
                 const remaining = captions.filter(c => {
                     const issues = this.evaluateCaptionIssues(c, settings, {});
-                    return issues.some(i => !['TOO_BRIEF', 'TOO_FAST', 'TOO_LONG'].includes(i.type));
+                    return issues.some(i => !['TOO_BRIEF', 'TOO_FAST', 'TOO_LONG', 'TOO_LONG_DURATION'].includes(i.type));
                 }).length;
 
                 const parts = [];
                 if (splitCount) parts.push(`split ${splitCount} caption${splitCount === 1 ? '' : 's'}`);
+                if (mergedCount) parts.push(`merged ${mergedCount} caption${mergedCount === 1 ? '' : 's'}`);
                 if (extendedCount) parts.push(`extended ${extendedCount} caption${extendedCount === 1 ? '' : 's'}`);
                 const summary = parts.length ? parts.join(', ') : 'nothing needed fixing after all';
                 const reviewNote = remaining ? ` ${remaining} caption${remaining === 1 ? '' : 's'} still flagged for manual review.` : '';
@@ -5210,6 +5470,80 @@ Object.assign(ProfessionalCaptionGenerator.prototype, {
                     segmentationMethod: methodSelect && methodSelect.value ? methodSelect.value : defaults.segmentationMethod,
                     customPrompt: promptEl && promptEl.value.trim() ? promptEl.value : defaults.customPrompt
                 };
+            },
+
+
+            // Bundles the Technical Terms Dictionary and Caption Generation
+            // Settings into one JSON file - for backing up or handing a
+            // consistent configuration to someone else, without dragging along
+            // API keys, theme, or other personal/machine-specific preferences
+            // that don't belong in a shared config. Routed through the shared
+            // downloadFile() helper (no directory handle) rather than duplicating
+            // the Blob/anchor download dance already used for captions/debug info.
+            async exportSettingsAndDictionary() {
+                const bundle = {
+                    type: 'automatic-caption-generator-settings',
+                    exportedAt: new Date().toISOString(),
+                    technicalTerms: this.getTechnicalTerms(),
+                    captionSettings: this.getCaptionSettings()
+                };
+                const content = JSON.stringify(bundle, null, 2);
+                const filename = `caption-generator-settings-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+                await this.downloadFile(content, filename, null);
+                this.showMessage('Exported dictionary and caption generation settings.', 'success');
+            },
+
+
+            // Reads a previously exported settings file and applies it, replacing
+            // whatever's currently set. Caption settings are applied by writing the
+            // incoming object into the same storage key loadCaptionSettings()
+            // already reads, then calling that loader - reuses its existing
+            // per-field validation instead of duplicating the id/key mapping here.
+            // saveCaptionSettings() afterward re-reads the now-populated inputs
+            // through getCaptionSettings() (which clamps to sane ranges) and
+            // persists that clamped version, so an imported file with an
+            // out-of-range number can't silently stick around unclamped.
+            importSettingsAndDictionary(file) {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    let parsed;
+                    try {
+                        parsed = JSON.parse(reader.result);
+                    } catch (error) {
+                        this.showMessage('Could not read that file - it does not look like valid JSON.', 'error');
+                        return;
+                    }
+
+                    const hasTerms = parsed && Array.isArray(parsed.technicalTerms);
+                    const hasSettings = parsed && parsed.captionSettings && typeof parsed.captionSettings === 'object';
+                    if (!hasTerms && !hasSettings) {
+                        this.showMessage('That file does not look like a dictionary/settings export from this tool.', 'error');
+                        return;
+                    }
+
+                    if (hasTerms) {
+                        document.getElementById('technicalTerms').value = parsed.technicalTerms.join('\n');
+                        this.saveDictionary();
+                    }
+
+                    if (hasSettings) {
+                        try {
+                            localStorage.setItem(this.CAPTION_SETTINGS_STORAGE_KEY, JSON.stringify(parsed.captionSettings));
+                        } catch (error) {
+                            console.error('Could not stage imported caption settings:', error);
+                        }
+                        this.loadCaptionSettings();
+                        this.updatePromptEditorVisibility();
+                        this.saveCaptionSettings();
+                    }
+
+                    this.updateProcessButton();
+                    this.showMessage('Imported dictionary and/or caption generation settings.', 'success');
+                };
+                reader.onerror = () => {
+                    this.showMessage('Could not read the selected file.', 'error');
+                };
+                reader.readAsText(file);
             },
 
 
@@ -6531,6 +6865,23 @@ Object.assign(ProfessionalCaptionGenerator.prototype, {
                         this.resetCaptionSettings();
                     });
 
+                    document.getElementById('exportSettingsBtn').addEventListener('click', () => {
+                        this.exportSettingsAndDictionary();
+                    });
+
+                    document.getElementById('importSettingsBtn').addEventListener('click', () => {
+                        document.getElementById('importSettingsInput').click();
+                    });
+
+                    document.getElementById('importSettingsInput').addEventListener('change', (e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                            this.importSettingsAndDictionary(file);
+                        }
+                        // Cleared so re-selecting the same file still fires 'change'.
+                        e.target.value = '';
+                    });
+
                     // Process button
                     document.getElementById('processBtn').addEventListener('click', () => {
                         this.handleProcessClick();
@@ -7312,13 +7663,28 @@ Object.assign(ProfessionalCaptionGenerator.prototype, {
                 const message = document.createElement('div');
                 message.className = `message ${type}`;
                 message.textContent = text;
-                
+
                 messageContainer.appendChild(message);
-                
-                setTimeout(() => {
+
+                // Added and immediately made visible in the same tick would never
+                // paint the initial opacity:0 - the transition needs a frame to
+                // actually happen, so the fade-in is queued for the next one.
+                requestAnimationFrame(() => {
+                    message.classList.add('visible');
+                });
+
+                const remove = () => {
                     if (message.parentNode) {
                         message.parentNode.removeChild(message);
                     }
+                };
+
+                setTimeout(() => {
+                    message.classList.remove('visible');
+                    message.addEventListener('transitionend', remove, { once: true });
+                    // Fallback in case transitionend never fires for some reason
+                    // (backgrounded tab, etc.) so the message doesn't linger.
+                    setTimeout(remove, 400);
                 }, 5000);
             },
 

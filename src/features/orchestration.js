@@ -178,6 +178,23 @@ export const orchestrationMethods = {
                         this.resetCaptionSettings();
                     });
 
+                    document.getElementById('exportSettingsBtn').addEventListener('click', () => {
+                        this.exportSettingsAndDictionary();
+                    });
+
+                    document.getElementById('importSettingsBtn').addEventListener('click', () => {
+                        document.getElementById('importSettingsInput').click();
+                    });
+
+                    document.getElementById('importSettingsInput').addEventListener('change', (e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                            this.importSettingsAndDictionary(file);
+                        }
+                        // Cleared so re-selecting the same file still fires 'change'.
+                        e.target.value = '';
+                    });
+
                     // Process button
                     document.getElementById('processBtn').addEventListener('click', () => {
                         this.handleProcessClick();
@@ -959,13 +976,28 @@ export const orchestrationMethods = {
                 const message = document.createElement('div');
                 message.className = `message ${type}`;
                 message.textContent = text;
-                
+
                 messageContainer.appendChild(message);
-                
-                setTimeout(() => {
+
+                // Added and immediately made visible in the same tick would never
+                // paint the initial opacity:0 - the transition needs a frame to
+                // actually happen, so the fade-in is queued for the next one.
+                requestAnimationFrame(() => {
+                    message.classList.add('visible');
+                });
+
+                const remove = () => {
                     if (message.parentNode) {
                         message.parentNode.removeChild(message);
                     }
+                };
+
+                setTimeout(() => {
+                    message.classList.remove('visible');
+                    message.addEventListener('transitionend', remove, { once: true });
+                    // Fallback in case transitionend never fires for some reason
+                    // (backgrounded tab, etc.) so the message doesn't linger.
+                    setTimeout(remove, 400);
                 }, 5000);
             },
 

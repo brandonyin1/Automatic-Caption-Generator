@@ -92,7 +92,7 @@
 .setup-section {
     background: var(--color-surface-alt);
     border: 1px solid var(--color-border);
-    border-left: 4px solid var(--color-black);
+    border-left: 4px solid var(--color-accent);
     border-radius: 12px;
     padding: 20px;
     margin-bottom: 25px;
@@ -207,7 +207,7 @@
 .settings-section {
     background: var(--color-surface-alt);
     border: 1px solid var(--color-border);
-    border-left: 4px solid var(--color-black);
+    border-left: 4px solid var(--color-accent);
     border-radius: 12px;
     padding: 20px;
     margin-bottom: 25px;
